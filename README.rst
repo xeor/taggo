@@ -7,6 +7,6 @@ Tag organizer that uses filenames and symlinks to create tags.
 :Status:
     Alpha stage.. Dont use :)
 :Documentation:
-    None yet
+    http://taggo.readthedocs.org/en/latest/
 :Author:
     Lars Solberg
