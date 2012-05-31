@@ -1,11 +1,19 @@
 #!/usr/bin/env python
 
+"""
+TODO:
+  What to do when renaming/adding tags to a filename, symlink will be dead..
+"""
+
 import sys
 import os
+import re
 import ConfigParser
 
 class Taggo:
     config = None
+    content_folder = ''
+    tags_folder = ''
 
     def __init__(self):
         self.mydir = os.path.dirname(os.path.abspath(__file__))
@@ -14,14 +22,37 @@ class Taggo:
             print 'Writing default config to %s\n' % self.config_file
             self.write_config()
 
-        self.config = ConfigParser.ConfigParser()
+        self.config = ConfigParser.RawConfigParser()
         self.config.read(self.config_file)
+
+        self.content_folder = self._get_fullpath('content_folder')
+        self.tags_folder = self._get_fullpath('tag_folder')
+
+    def _get_fullpath(self, config_name):
+        raw_folder = self.get_config('paths', config_name)
+        if raw_folder[0] == '.':
+            # Assume relativ path to the script home, as in the docs
+            return os.path.abspath('%s/%s' % (self.mydir, raw_folder))
+        else:
+            return os.path.abspath(raw_folder)
+
+    def help(self):
+        print 'Usage: taggo option\n'
+        print 'A defalt configuration file will be written if it doesnt exists.\n'
+        print 'Options:'
+        print '  help           This help'
+        print '  test           Test what taggo will do'
 
     def write_config(self):
         config = ConfigParser.RawConfigParser()
+        config.add_section('general')
+        config.set('general', 'subtag_separator', '- ; Character to split the tag into sub-tags on.')
+        config.set('general', 'folder_to_tag_replacer', '_ ; Character that replaces the / when creating tagfiles')
+        config.set('general', 'tag_filenames', '%(relative_paths_names)s - %(full_filename)s')
+
         config.add_section('paths')
-        config.set('paths', 'main_folder', './test ; Full path or relative to taggo script folder if it starts with ./')
-        config.set('paths', 'tag_folder', './tags ; Full path or relative to your main_folder if it starts with ./')
+        config.set('paths', 'content_folder', './pictures ; Full path or relative to main_folder if it starts with ./')
+        config.set('paths', 'tag_folder', './tags ; Full path or relative to main_folder if it starts with ./')
 
         config_fp = open(self.config_file, 'wb')
         config.write(config_fp)
@@ -34,19 +65,50 @@ class Taggo:
             print 'Configuration error: %s' % e
             sys.exit(2)
 
-    def help(self):
-        print """
-Usage: taggo option
+    def make_tags(self):
+        """
+        This is the main worker..
+        """
 
-A defalt configuration file will be written if it doesnt exists.
+        folder_to_tag_replacer = self.get_config('general', 'folder_to_tag_replacer')
+        subtag_separator = self.get_config('general', 'subtag_separator')
+        tag_filenames = self.get_config('general', 'tag_filenames')
 
-Options:
-  help           This help
-  test           Test what taggo will do
-"""
+        for root, dirs, files in os.walk(self.content_folder):
+            if files:
+                replacer = {}
+                if root == self.content_folder:
+                    # We got loose files in our content folder..
+                    path = ['']
+                else:
+                    path = root.replace(self.content_folder + '/', '', 1).split('/')
+
+                replacer['last_path_name'] = path[-1:][0]
+                replacer['relative_paths_names'] = folder_to_tag_replacer.join(path)
+                for f in files:
+                    file_path = '%s/%s' % (root, f)
+                    f_split = f.split(' ')
+                    if len(f_split) <= 1:
+                        continue # Didnt find any tags, we asume a space means it have tags..
+
+                    file_id = f_split.pop(0) # Away with the file ID, and grab file_id
+                    f_tags = ' '.join(f_split).split('.')[:-1] # Away with fileext
+
+                    replacer['full_filename'] = f
+                    replacer['file_id'] = file_id
+
+                    print '=', file_path
+                    for t in ' '.join(f_tags).split(','):
+                        tag = t.strip().replace(subtag_separator, '/')
+                        tag_folder = '%s/%s' % (self.tags_folder, tag)
+                        tag_filename = tag_filenames % replacer
+
+                        symlink_path = '%s/%s' % (tag_folder, tag_filename)
+                        print '>', symlink_path
+                    print
 
     def test(self):
-        pass
+        self.make_tags()
 
 if __name__ == '__main__':
     taggo = Taggo()
@@ -62,4 +124,3 @@ if __name__ == '__main__':
 
     if arg == 'help': taggo.help()
     if arg == 'test': taggo.test()
-    print taggo.mydir
