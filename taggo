@@ -80,6 +80,9 @@ class Taggo:
         subtag_separator = self.get_config('general', 'subtag_separator')
         tag_filenames = self.get_config('general', 'tag_filenames')
 
+        if self.debug:
+            count = 0
+
         for root, dirs, files in os.walk(self.content_folder):
             if files:
                 replacer = {}
@@ -93,6 +96,12 @@ class Taggo:
                 replacer['relative_paths_names'] = folder_to_tag_replacer.join(path)
                 for f in files:
                     file_path = '%s/%s' % (root, f)
+
+                    if self.debug:
+                        count += 1
+                        if count % 100 == 0: # Status for every 100
+                            print 'Have checked %s, currently on %s' % (count, file_path)
+
                     f_split = f.split(' ')
                     if len(f_split) <= 1:
                         continue # Didnt find any tags, we asume a space means it have tags..
@@ -103,7 +112,7 @@ class Taggo:
                     replacer['full_filename'] = f
                     replacer['file_id'] = file_id
 
-                    if self.debug: print '=', file_path
+                    #if self.debug: print '=', file_path
 
                     for t in ' '.join(f_tags).split(','):
                         tag = t.strip().replace(subtag_separator, '/')
@@ -111,14 +120,17 @@ class Taggo:
                         tag_filename = tag_filenames % replacer
 
                         if not os.path.isdir(tag_folder):
+                            if self.debug: print '* Creating folder(s) %s' % tag_folder
                             os.makedirs(tag_folder)
 
                         symlink_path = '%s/%s' % (tag_folder, tag_filename)
                         if not os.path.islink(symlink_path):
+                            if self.debug:
+                                print 'Source file: %s' % file_path
+                                print 'Symlink', symlink_path
+                                print
                             os.symlink(file_path, symlink_path)
-
-                        if self.debug: print '>', symlink_path
-                    if self.debug: print
+                        #if self.debug: print '>', symlink_path
 
     def cleanup(self):
         """
