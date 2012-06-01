@@ -41,7 +41,7 @@ class Taggo:
         print 'A defalt configuration file will be written if it doesnt exists.\n'
         print 'Options:'
         print '  help           This help'
-        print '  test           Test what taggo will do'
+        print '  make_tags      Create missing symlink tags'
 
     def write_config(self):
         config = ConfigParser.RawConfigParser()
@@ -67,7 +67,7 @@ class Taggo:
 
     def make_tags(self):
         """
-        This is the main worker..
+        Function that goes trough and creates missing tag folders and missing symlinks
         """
 
         folder_to_tag_replacer = self.get_config('general', 'folder_to_tag_replacer')
@@ -103,17 +103,20 @@ class Taggo:
                         tag_folder = '%s/%s' % (self.tags_folder, tag)
                         tag_filename = tag_filenames % replacer
 
+                        if not os.path.isdir(tag_folder):
+                            os.makedirs(tag_folder)
+
                         symlink_path = '%s/%s' % (tag_folder, tag_filename)
+                        if not os.path.islink(symlink_path):
+                            os.symlink(file_path, symlink_path)
+
                         print '>', symlink_path
                     print
-
-    def test(self):
-        self.make_tags()
 
 if __name__ == '__main__':
     taggo = Taggo()
 
-    valid_args = ['test', 'help']
+    valid_args = ['help', 'make_tags']
 
     try:
         arg = sys.argv[1]
@@ -123,4 +126,4 @@ if __name__ == '__main__':
     if arg not in valid_args: arg = 'help'
 
     if arg == 'help': taggo.help()
-    if arg == 'test': taggo.test()
+    if arg == 'make_tags': taggo.make_tags()
