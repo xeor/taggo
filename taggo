@@ -11,11 +11,15 @@ import re
 import ConfigParser
 
 class Taggo:
+    debug = False
     config = None
     content_folder = ''
     tags_folder = ''
 
-    def __init__(self):
+    def __init__(self, debug=False):
+        if debug:
+            self.debug = True
+
         self.mydir = os.path.dirname(os.path.abspath(__file__))
         self.config_file = '%s/taggo.cfg' % self.mydir
         if not os.path.isfile(self.config_file):
@@ -41,6 +45,8 @@ class Taggo:
         print 'A defalt configuration file will be written if it doesnt exists.\n'
         print 'Options:'
         print '  help           This help'
+        print '  run_once       Cleanup first, and then create new tags. Once'
+        print '  cleanup        Look for and delete dead symlinks'
         print '  make_tags      Create missing symlink tags'
 
     def write_config(self):
@@ -97,7 +103,8 @@ class Taggo:
                     replacer['full_filename'] = f
                     replacer['file_id'] = file_id
 
-                    print '=', file_path
+                    if self.debug: print '=', file_path
+
                     for t in ' '.join(f_tags).split(','):
                         tag = t.strip().replace(subtag_separator, '/')
                         tag_folder = '%s/%s' % (self.tags_folder, tag)
@@ -110,13 +117,28 @@ class Taggo:
                         if not os.path.islink(symlink_path):
                             os.symlink(file_path, symlink_path)
 
-                        print '>', symlink_path
-                    print
+                        if self.debug: print '>', symlink_path
+                    if self.debug: print
+
+    def cleanup(self):
+        """
+        Goes trough every symlink and check if they are still valid. If they are not, deletes them.
+        There is no good way to detect where they belongs now, and make_tags will recreate them with the
+        right path
+        """
+
+        for root, dirs, files in os.walk(self.tags_folder):
+            if files:
+                for f in files:
+                    if not os.path.exists(os.readlink('%s/%s' % (root, f))):
+                        os.unlink('%s/%s' % (root, f))
+                        if self.debug: print 'Removing dead link %s/%s' % (root, f)
+        if self.debug: print
 
 if __name__ == '__main__':
-    taggo = Taggo()
+    taggo = Taggo(debug=True)
 
-    valid_args = ['help', 'make_tags']
+    valid_args = ['help', 'make_tags', 'cleanup', 'run_once']
 
     try:
         arg = sys.argv[1]
@@ -127,3 +149,7 @@ if __name__ == '__main__':
 
     if arg == 'help': taggo.help()
     if arg == 'make_tags': taggo.make_tags()
+    if arg == 'cleanup': taggo.cleanup()
+    if arg == 'run_once':
+        taggo.cleanup()
+        taggo.make_tags()
