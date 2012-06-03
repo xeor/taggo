@@ -71,13 +71,15 @@ class Taggo:
         Function that goes trough and creates missing tag folders and missing symlinks
         """
 
-        ignored_subfolders = ['.AppleDouble',]
+        ignored_subfolders = ['.AppleDouble', 'iPod Photo Cache',]
 
         folder_to_tag_replacer = self.get_config('general', 'folder_to_tag_replacer')
         subtag_separator = self.get_config('general', 'subtag_separator')
         tag_filenames = self.get_config('general', 'tag_filenames')
 
         match_num_space = re.compile(r'^[0-9 ]+$')
+        replace_start_num_space = re.compile(r'^[0-9 ]+')
+
 
         if self.debug:
             count = 0
@@ -95,7 +97,13 @@ class Taggo:
                     continue
 
                 replacer['last_path_name'] = path[-1:][0]
+                if not replacer['last_path_name']:
+                    replacer['last_path_name'] = 'root'
+
                 replacer['relative_paths_names'] = folder_to_tag_replacer.join(path)
+                if not replacer['relative_paths_names']:
+                    replacer['relative_paths_names'] = 'root'
+
                 for f in files:
                     file_path = '%s/%s' % (root, f)
 
@@ -109,6 +117,12 @@ class Taggo:
                         continue # Didnt find any tags, we asume a space means it have tags..
 
                     file_id = f_split.pop(0) # Away with the file ID, and grab file_id
+                    if f_split[0] == '-':
+                        # Filename is in format "dcim001 - some
+                        # words", this normally is a sign of a
+                        # comment, and we should not tag it.
+                        continue
+
                     f_tags = ' '.join(f_split).split('.')[:-1] # Away with fileext
 
                     replacer['full_filename'] = f
@@ -118,8 +132,17 @@ class Taggo:
 
                     for t in ' '.join(f_tags).split(','):
                         tag = t.strip().replace(subtag_separator, '/')
+
+                        # Take away tags that starts with a number.
+                        # Those are probably dated filenames
+                        tag = replace_start_num_space.sub('', tag, 1)
+
                         tag_folder = '%s/%s' % (self.tags_folder, tag)
+
                         tag_filename = tag_filenames % replacer
+
+                        if not tag: # Might be empty after the applied rules
+                            continue
 
                         if match_num_space.match(tag):
                             continue # Probably errorous tagging..
@@ -142,18 +165,24 @@ class Taggo:
         Goes trough every symlink and check if they are still valid. If they are not, deletes them.
         There is no good way to detect where they belongs now, and make_tags will recreate them with the
         right path
+
+        This is made so it can only possible delete symlinks, in other words, it should be very safe to use :)
         """
 
         for root, dirs, files in os.walk(self.tags_folder):
             if files:
                 for f in files:
-                    if not os.path.exists(os.readlink('%s/%s' % (root, f))):
-                        os.unlink('%s/%s' % (root, f))
-                        if self.debug: print 'Removing dead link %s/%s' % (root, f)
+                    try:
+                        if not os.path.exists(os.readlink('%s/%s' % (root, f))):
+                            os.unlink('%s/%s' % (root, f))
+                            if self.debug: print 'Removing dead link %s/%s' % (root, f)
+                    except OSError:
+                        pass
+
         if self.debug: print
 
 if __name__ == '__main__':
-    taggo = Taggo(debug=True)
+    taggo = Taggo(debug=False)
 
     valid_args = ['help', 'make_tags', 'cleanup', 'run_once']
 
