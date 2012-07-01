@@ -172,20 +172,26 @@ class Taggo:
         There is no good way to detect where they belongs now, and make_tags will recreate them with the
         right path
 
-        This is made so it can only possible delete symlinks, in other words, it should be very safe to use :)
+        This is made so it can only possible delete symlinks and empty folders, in other words, it should be very safe to use :)
         """
 
         if self.debug: print 'Running cleanup()'
 
+        if self.debug: print 'Starting removing dead links'
         for root, dirs, files in os.walk(self.tags_folder):
+            print root, dirs, files
             if files:
                 for f in files:
                     try:
-                        if not os.path.exists(os.readlink('%s/%s' % (root, f))):
-                            os.unlink('%s/%s' % (root, f))
-                            if self.debug: print 'Removing dead link %s/%s' % (root, f)
+                        full_path = os.path.join(root, f)
+                        if not os.path.exists(os.readlink(full_path)):
+                            os.unlink(full_path)
+                            if self.debug: print 'Removing dead link %s' % full_path
                     except OSError:
                         pass
+
+        if self.debug: print 'Starting removing empty directories'
+        # logic here...
 
 if __name__ == '__main__':
     taggo = Taggo(debug=True)
