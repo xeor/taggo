@@ -39,10 +39,11 @@ class Taggo:
         print 'Usage: taggo option\n'
         print 'A defalt configuration file will be written if it doesnt exists.\n'
         print 'Options:'
-        print '  help           This help'
-        print '  run_once       Cleanup first, and then create new tags. Once'
-        print '  cleanup        Look for and delete dead symlinks'
-        print '  make_tags      Create missing symlink tags'
+        print '  help             This help'
+        print '  run_once         Cleanup first, and then create new tags. Once'
+        print '  cleanup          Look for and delete dead symlinks'
+        print '  make_tags        Create missing symlink tags'
+        print '  rename from to   Example "taggo rename People-Paul People-Family-Paul", or "taggo rename Pau Paul.'
 
     def write_config(self):
         config = ConfigParser.RawConfigParser()
@@ -66,6 +67,10 @@ class Taggo:
             print 'Configuration error: %s' % e
             sys.exit(2)
 
+    def rename(self, original, to):
+        if self.debug:
+            print 'Will rename every tags %s to %s' % (original, to)
+
     def make_tags(self):
         """
         Function that goes trough and creates missing tag folders and missing symlinks
@@ -82,6 +87,7 @@ class Taggo:
 
 
         if self.debug:
+            print 'Running make_tags()'
             count = 0
 
         for root, dirs, files in os.walk(self.content_folder):
@@ -169,6 +175,8 @@ class Taggo:
         This is made so it can only possible delete symlinks, in other words, it should be very safe to use :)
         """
 
+        if self.debug: print 'Running cleanup()'
+
         for root, dirs, files in os.walk(self.tags_folder):
             if files:
                 for f in files:
@@ -179,23 +187,29 @@ class Taggo:
                     except OSError:
                         pass
 
-        if self.debug: print
-
 if __name__ == '__main__':
-    taggo = Taggo(debug=False)
-
-    valid_args = ['help', 'make_tags', 'cleanup', 'run_once']
+    taggo = Taggo(debug=True)
 
     try:
         arg = sys.argv[1]
     except IndexError:
-        arg = 'help'
+        arg = None
 
-    if arg not in valid_args: arg = 'help'
+    if arg == 'make_tags':
+        taggo.make_tags()
+        sys.exit(0)
 
-    if arg == 'help': taggo.help()
-    if arg == 'make_tags': taggo.make_tags()
-    if arg == 'cleanup': taggo.cleanup()
+    if arg == 'cleanup':
+        taggo.cleanup()
+        sys.exit(0)
+
     if arg == 'run_once':
         taggo.cleanup()
         taggo.make_tags()
+        sys.exit(0)
+
+    if len(sys.argv) == 4:
+        if arg == 'rename': taggo.rename(original=sys.argv[2], to=sys.argv[3])
+        sys.exit(0)
+
+    taggo.help()
