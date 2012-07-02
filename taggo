@@ -37,23 +37,23 @@ class Taggo:
 
     def _del_empty_dirs(self, s_dir):
         # Original @ https://gist.github.com/1569173
-        # With some small fixes to make it work :)
 
         b_empty = True
 
         for s_target in os.listdir(s_dir):
             s_path = os.path.join(s_dir, s_target)
+
             if os.path.isdir(s_path):
                 if not self._del_empty_dirs(s_path):
                     b_empty = False
             else:
                 b_empty = False
 
-            if b_empty:
-                if self.debug: print 'deleting empty dir %s' % (s_path,)
+        if b_empty:
+            if self.debug: print 'deleting empty dir %s' % (s_dir,)
 
-                # os.rmdir is only allowed to delete empty directories
-                os.rmdir(s_path)
+            # os.rmdir is only allowed to delete empty directories
+            os.rmdir(s_dir)
 
         return b_empty
 
@@ -217,7 +217,7 @@ class Taggo:
         self._del_empty_dirs(self.tags_folder)
 
 if __name__ == '__main__':
-    taggo = Taggo(debug=False)
+    taggo = Taggo(debug=True)
 
     try:
         arg = sys.argv[1]
