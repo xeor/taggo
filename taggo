@@ -11,10 +11,7 @@ class Taggo:
     content_folder = ''
     tags_folder = ''
 
-    def __init__(self, debug=False):
-        if debug:
-            self.debug = True
-
+    def __init__(self):
         self.mydir = os.path.dirname(os.path.abspath(__file__))
         self.config_file = '%s/taggo.cfg' % self.mydir
         if not os.path.isfile(self.config_file):
@@ -23,9 +20,14 @@ class Taggo:
 
         self.config = ConfigParser.RawConfigParser()
         self.config.read(self.config_file)
+        self.debug = self.get_config('general', 'debug', 'bool')
 
         self.content_folder = self._get_fullpath('content_folder')
         self.tags_folder = self._get_fullpath('tag_folder')
+
+        self.tag_indicator = self.get_config('general', 'tag_indicator')
+
+        self.hashtag_extracter = re.compile(r'%s([^ \.,]+)' % self.tag_indicator)
 
     def _get_fullpath(self, config_name):
         raw_folder = self.get_config('paths', config_name)
@@ -52,11 +54,46 @@ class Taggo:
         if b_empty:
             if self.debug: print 'deleting empty dir %s' % (s_dir,)
 
-            # os.rmdir is only allowed to delete empty directories
-            os.rmdir(s_dir)
+            os.rmdir(s_dir) # os.rmdir can only allowed to delete empty directories
 
         return b_empty
 
+    def _make_symlink(self, full_path):
+        folder_to_tag_replacer = self.get_config('general', 'folder_to_tag_replacer')
+        rel_folders_replacer = self.get_config('general', 'rel_folders_replacer')
+        subtag_separator = self.get_config('general', 'subtag_separator')
+        tag_filenames = self.get_config('general', 'tag_filenames')
+
+        # Populated with info we can use in the configuration when deciding on the naming
+        replace_info = {}
+
+        relative_path = full_path.replace(self.content_folder + os.path.sep, '', 1).split(os.path.sep)
+        if len(relative_path) <= 1:
+            replace_info['rel_folders'] = 'root'
+        else:
+            replace_info['rel_folders'] = rel_folders_replacer.join(relative_path[:-1])
+
+        basename = relative_path[-1]
+        replace_info['basename'] = basename
+
+        tags = set(self.hashtag_extracter.findall(basename))
+
+        for tag in tags:
+            tag = tag.replace(subtag_separator, os.path.sep)
+            tag_folder = os.path.join(self.tags_folder, tag)
+            tag_name = tag_filenames % replace_info
+
+            if not os.path.isdir(tag_folder):
+                if self.debug: print '* Creating folder(s) %s' % tag_folder
+                os.makedirs(tag_folder)
+
+            full_symlink_path = os.path.join(tag_folder, tag_name)
+            if not os.path.islink(full_symlink_path):
+                if self.debug:
+                    print 'Source file: %s' % full_path
+                    print 'Symlink', full_symlink_path
+                    print
+                os.symlink(full_path, full_symlink_path)
 
     def help(self):
         print 'Usage: taggo option\n'
@@ -74,6 +111,7 @@ class Taggo:
         config.set('general', 'subtag_separator', '- ; Character to split the tag into sub-tags on.')
         config.set('general', 'folder_to_tag_replacer', '_ ; Character that replaces the / when creating tagfiles')
         config.set('general', 'tag_filenames', '%(relative_paths_names)s - %(full_filename)s')
+        config.set('general', 'do_folders', '0 ; 0 is false, 1 is true')
 
         config.add_section('paths')
         config.set('paths', 'content_folder', './pictures ; Full path or relative to main_folder if it starts with ./')
@@ -83,9 +121,13 @@ class Taggo:
         config.write(config_fp)
         config_fp.close()
 
-    def get_config(self, section, item):
+    def get_config(self, section, item, type='normal'):
         try:
-            return self.config.get(section, item)
+            if type == 'normal':
+                return self.config.get(section, item)
+            if type == 'bool':
+                return self.config.getboolean(section, item)
+
         except (ConfigParser.NoOptionError, ConfigParser.NoSectionError), e:
             print 'Configuration error: %s' % e
             sys.exit(2)
@@ -99,11 +141,7 @@ class Taggo:
         Function that goes trough and creates missing tag folders and missing symlinks
         """
 
-        ignored_subfolders = ['.AppleDouble', 'iPod Photo Cache',]
-
-        folder_to_tag_replacer = self.get_config('general', 'folder_to_tag_replacer')
         subtag_separator = self.get_config('general', 'subtag_separator')
-        tag_filenames = self.get_config('general', 'tag_filenames')
 
         match_num_space = re.compile(r'^[0-9 ]+$')
         replace_start_num_space = re.compile(r'^[0-9 ]+')
@@ -114,80 +152,15 @@ class Taggo:
             count = 0
 
         for root, dirs, files in os.walk(self.content_folder):
-            if files:
-                replacer = {}
-                if root == self.content_folder:
-                    # We got loose files in our content folder..
-                    path = ['']
-                else:
-                    path = root.replace(self.content_folder + '/', '', 1).split('/')
+            basefolder = os.path.basename(root)
 
-                if path[-1:][0] in ignored_subfolders:
-                    continue
+            if self.tag_indicator in basefolder:
+                self._make_symlink(root)
 
-                replacer['last_path_name'] = path[-1:][0]
-                if not replacer['last_path_name']:
-                    replacer['last_path_name'] = 'root'
-
-                replacer['relative_paths_names'] = folder_to_tag_replacer.join(path)
-                if not replacer['relative_paths_names']:
-                    replacer['relative_paths_names'] = 'root'
-
-                for f in files:
-                    file_path = '%s/%s' % (root, f)
-
-                    if self.debug:
-                        count += 1
-                        if count % 1000 == 0: # Status for every 1000
-                            print 'Have checked %s, currently on %s' % (count, file_path)
-
-                    f_split = f.split(' ')
-                    if len(f_split) <= 1:
-                        continue # Didnt find any tags, we asume a space means it have tags..
-
-                    file_id = f_split.pop(0) # Away with the file ID, and grab file_id
-                    if f_split[0] == '-':
-                        # Filename is in format "dcim001 - some
-                        # words", this normally is a sign of a
-                        # comment, and we should not tag it.
-                        continue
-
-                    f_tags = ' '.join(f_split).split('.')[:-1] # Away with fileext
-
-                    replacer['full_filename'] = f
-                    replacer['file_id'] = file_id
-
-                    #if self.debug: print '=', file_path
-
-                    for t in ' '.join(f_tags).split(','):
-                        tag = t.strip().replace(subtag_separator, '/')
-
-                        # Take away tags that starts with a number.
-                        # Those are probably dated filenames
-                        tag = replace_start_num_space.sub('', tag, 1)
-
-                        tag_folder = '%s/%s' % (self.tags_folder, tag)
-
-                        tag_filename = tag_filenames % replacer
-
-                        if not tag: # Might be empty after the applied rules
-                            continue
-
-                        if match_num_space.match(tag):
-                            continue # Probably errorous tagging..
-
-                        if not os.path.isdir(tag_folder):
-                            if self.debug: print '* Creating folder(s) %s' % tag_folder
-                            os.makedirs(tag_folder)
-
-                        symlink_path = '%s/%s' % (tag_folder, tag_filename)
-                        if not os.path.islink(symlink_path):
-                            if self.debug:
-                                print 'Source file: %s' % file_path
-                                print 'Symlink', symlink_path
-                                print
-                            os.symlink(file_path, symlink_path)
-                        #if self.debug: print '>', symlink_path
+            for file in files:
+                if self.tag_indicator in file:
+                    full_path = '%s/%s' % (root, file)
+                    self._make_symlink(full_path)
 
     def cleanup(self):
         """
@@ -217,7 +190,7 @@ class Taggo:
         self._del_empty_dirs(self.tags_folder)
 
 if __name__ == '__main__':
-    taggo = Taggo(debug=True)
+    taggo = Taggo()
 
     try:
         arg = sys.argv[1]
