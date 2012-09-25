@@ -59,7 +59,6 @@ class Taggo:
         return b_empty
 
     def _make_symlink(self, full_path):
-        folder_to_tag_replacer = self.get_config('general', 'folder_to_tag_replacer')
         rel_folders_replacer = self.get_config('general', 'rel_folders_replacer')
         subtag_separator = self.get_config('general', 'subtag_separator')
         tag_filenames = self.get_config('general', 'tag_filenames')
@@ -109,9 +108,7 @@ class Taggo:
         config = ConfigParser.RawConfigParser()
         config.add_section('general')
         config.set('general', 'subtag_separator', '- ; Character to split the tag into sub-tags on.')
-        config.set('general', 'folder_to_tag_replacer', '_ ; Character that replaces the / when creating tagfiles')
         config.set('general', 'tag_filenames', '%(relative_paths_names)s - %(full_filename)s')
-        config.set('general', 'do_folders', '0 ; 0 is false, 1 is true')
 
         config.add_section('paths')
         config.set('paths', 'content_folder', './pictures ; Full path or relative to main_folder if it starts with ./')

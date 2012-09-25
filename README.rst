@@ -1,8 +1,8 @@
 taggo
 =====
 
-Tag organizer that uses filenames and symlinks to create tags.
-
+Tag organizer that uses names of files and folders to create symlinks.
+Tags are defined by using #hashtags in the name. They can also be as many sub levels as you want, like #sub-hash-tag
 
 :Status:
     Beta stage.. Report bugs :)
@@ -40,52 +40,66 @@ called taggo.cfg if it doesnt exists in the same directory.
 What it does
 ------------
 
-Taggo creates symlinks based on several criterias. Here is a list of
-rules it uses to deside if it creates a symlink in the tag folder or
-not.
+Taggo creates symlinks based on hashtags it finds in the file or foldername.
 
+Here are some examples
 
-.. list-table:: Tag naming rules
+.. list-table:: Filename examples
    :widths: 10 40
    :header-rows: 1
 
-   * - Rule
-     - Description
-   * - Ignored folders
-     - If we are in one ignored folder (currently just .AppleDouble and "iPod Photo Cache", we are ignoring every files in it. Note; we will still go into subfolders...
-   * - No file id-name
-     - The first word (split by space), is taken away in the filename.
-   * - No fileext
-     - Everything after the last . and the . itself is taken away.
-   * - No numbers and space only tags
-     - If the only thing the tag contains is numbers and spaces, it is ignored.
-   * - Starts with numbers
-     - Tags that starts with numbers are also ignored.
+   * - Fil/folder names
+     - Creates
+   * - A random name.jpg
+     - 
+   * - dcim1234 #People-Lars #food.jpg
+     - 1 link in a folder People/Lars/... and one in food/
+   * - 2012-09-25 Oslo tour #Earth-Europe-Norway-Oslo/dcim123...
+     - Link to the folder under Earth/Europe/Norway/Oslo/2012-09-25....
 
-Filename to tagname examples
-----------------------------
+usage
+-----
 
-Here is a list of examples on how this works with the default configuration.
-The example is with a picture gallery, and taggo is configured to use
-/pictures as main path for where it finds the files it will tag, and
-/tags for where to store the symlinks.
-
-.. list-table:: Naming examples
-   :widths: 35 40
+.. list-table:: Commandline options
+   :widths: 10 40
    :header-rows: 1
 
-   * - Filepath
-     - Symlink
-   * - /pictures/2011-07-27 14.40.38 Animals-Lions.jpg
-     - /tags/Animals/Lions/root - 2011-07-27 14.40.38 Animals-Lions.jpg
-   * - /pictures/2011 trip/dcim1234 Animals-Lions.jpg
-     - /tags/Animals/Lions/2011 trip - dcim1234 Animals-Lions.jpg
-   * - /pictures/2012 Paris tour/DCIM1237 Food, People-John, People-Paul.jpg
-     - /tags/Food/2012 Paris tour - DCIM1237 Food, People-John, People-Paul.jpg
+   * - Command
+     - Description
+   * - ./taggo help
+     - Display help
+   * - ./taggo run_once
+     - Delete dead symlinks in the tag folder, then goes trough and the ones we are missing.
+   * - ./taggo cleanup
+     - Deletes dead symlinks in the tag folder.
+   * - ./taggo make_tags
+     - Creates new tags
+   * - ./taggo rename FROM TO
+     - Not yet implemented..
 
-       /tags/People/John/2012 Paris tour - DCIM1237 Food, People-John, People-Paul.jpg
+taggo.cfg
+---------
 
-       /tags/People/Paul/2012 Paris tour - DCIM1237 Food, People-John, People-Paul.jpg
+.. list-table:: Configuration options
+   :widths: 10 40
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - [general] debug
+     - Turn on (1) or off (1) extra debug when taggo is running
+   * - [general] tag_indicator
+     - Which tag should a tag begin with (default #)
+   * - [general] subtag_separator
+     - Character that separates subtags (default -)
+   * - [general] rel_folders_replacer
+     - What to replace the / with when using the path in the name as %(rel_folders)s
+   * - [general] tag_filenames
+     - Filename to give tags (symlinks). %(rel_folders)s is replaced with related folders upto this folder. %(basename)s is replaced with the filename itself.
+   * - [paths] content_folder
+     - Folder to look for files we can symlink to. Set it to example "./pictures" if there is a folder called pictures relative to taggo. Or use full path.
+   * - [paths] tag_folder
+     - Same as content_folder, except this is the folder where we are going to place the symlinks.
 
 FAQ
 ---
