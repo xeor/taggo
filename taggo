@@ -27,7 +27,7 @@ class Taggo:
 
         self.tag_indicator = self.get_config('general', 'tag_indicator')
 
-        self.hashtag_extracter = re.compile(r'[ \.,]+%s([^ \.,]+)' % self.tag_indicator)
+        self.hashtag_extracter = re.compile(r'\B%s([^ \.,]+)\b' % self.tag_indicator)
 
     def _get_fullpath(self, config_name):
         raw_folder = self.get_config('paths', config_name)
