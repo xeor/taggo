@@ -27,7 +27,7 @@ class Taggo:
 
         self.tag_indicator = self.get_config('general', 'tag_indicator')
 
-        self.hashtag_extracter = re.compile(r'%s([^ \.,]+)' % self.tag_indicator)
+        self.hashtag_extracter = re.compile(r'[ \.,]+%s([^ \.,]+)' % self.tag_indicator)
 
     def _get_fullpath(self, config_name):
         raw_folder = self.get_config('paths', config_name)
@@ -132,6 +132,13 @@ class Taggo:
     def rename(self, original, to):
         if self.debug:
             print 'Will rename every tags %s to %s' % (original, to)
+
+        self.tag_detector = re.compile(r'[ \.,]+%s%s[ \.,]?' % (self.tag_indicator, original))
+
+        for root, dirs, files in os.walk(self.content_folder):
+            for file in files:
+                if self.tag_detector.search(file):
+                    print 'found match', file
 
     def make_tags(self):
         """
