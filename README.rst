@@ -56,6 +56,10 @@ Here are some examples
      - 1 link in a folder People/Lars/... and one in food/
    * - 2012-09-25 Oslo tour #Earth-Europe-Norway-Oslo/dcim123...
      - Link to the folder under Earth/Europe/Norway/Oslo/2012-09-25....
+   * - dcim123,#tag1.jpg
+     - Link to the file under tag1/
+   * - dcim321#tag2.jpg
+     - Nothing, a tag needs a space, . or , in front and back of the tag.
 
 usage
 -----
