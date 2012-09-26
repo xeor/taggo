@@ -79,7 +79,7 @@ usage
    * - ./taggo make_tags
      - Creates new tags
    * - ./taggo rename FROM TO
-     - Not yet implemented..
+     - Renames tags in the filenames themself. Useful if you have files with tag typos or if you want to do a cleanup. Support both folders and files. Note that this does not change the symlinks, only sourcefiles. You should run run_once after renaming.
 
 taggo.cfg
 ---------
