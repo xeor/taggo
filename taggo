@@ -140,10 +140,6 @@ class Taggo:
 
         subtag_separator = self.get_config('general', 'subtag_separator')
 
-        match_num_space = re.compile(r'^[0-9 ]+$')
-        replace_start_num_space = re.compile(r'^[0-9 ]+')
-
-
         if self.debug:
             print 'Running make_tags()'
             count = 0
