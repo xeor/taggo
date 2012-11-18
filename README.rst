@@ -10,6 +10,8 @@ Tags are defined by using #hashtags in the name. They can also be as many sub le
     This page
 :Author:
     Lars Solberg
+:Blog post:
+    http://blog.boa.nu/2012/11/tagging-files-and-folders-using-hashtags-and-symlinks.html
 
 Introduction
 ------------
