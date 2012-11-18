@@ -107,8 +107,11 @@ class Taggo:
     def write_config(self):
         config = ConfigParser.RawConfigParser()
         config.add_section('general')
+        config.set('general', 'debug', '0 ; 1 is true, 0 is false')
+        config.set('general', 'tag_indicator', '#')
         config.set('general', 'subtag_separator', '- ; Character to split the tag into sub-tags on.')
-        config.set('general', 'tag_filenames', '%(relative_paths_names)s - %(full_filename)s')
+        config.set('general', 'rel_folders_replacer', '_')
+        config.set('general', 'tag_filenames', '%(rel_folders)s - %(basename)s')
 
         config.add_section('paths')
         config.set('paths', 'content_folder', './pictures ; Full path or relative to main_folder if it starts with ./')
