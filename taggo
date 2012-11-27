@@ -176,6 +176,7 @@ class Taggo:
             count = 0
 
         for root, dirs, files in os.walk(self.content_folder):
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
             basefolder = os.path.basename(root)
 
             if self.tag_indicator in basefolder:
