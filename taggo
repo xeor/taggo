@@ -12,7 +12,7 @@ class Taggo:
     content_folder = ''
     tags_folder = ''
 
-    def __init__(self):
+    def __run_once__(self):
         self.mydir = os.environ['HOME']
         self.config_file = '%s/.taggo.cfg' % self.mydir
         if not os.path.isfile(self.config_file):
@@ -100,7 +100,7 @@ class Taggo:
         print 'A defalt configuration file will be written if it doesnt exists.\n'
         print 'Options:'
         print '  help                 This help'
-        print '  init                 Cleanup first and then creates the new tags.'
+        print '  run_once             Cleanup first and then creates the new tags.'
         print '  cleanup              Look for and delete dead symlinks'
         print '  make_tags            Create missing symlink tags'
         print '  rename <from> <to>   Example "taggo rename People-Paul People-Family-Paul", or "taggo rename Pau Paul. Will only rename files, not tags.'
@@ -233,7 +233,7 @@ if __name__ == '__main__':
         taggo.cleanup()
         sys.exit(0)
 
-    if arg == 'init':
+    if arg == 'run_once':
         taggo.cleanup()
         taggo.make_tags()
         sys.exit(0)
