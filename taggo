@@ -33,7 +33,7 @@ class Taggo:
     def _get_fullpath(self, config_name):
         raw_folder = self.get_config('paths', config_name)
         if raw_folder[0] == '.':
-            # Assume relativ path to the script home, as in the docs
+            # Assume relative path to the script home, as in the docs
             return os.path.abspath('%s/%s' % (self.mydir, raw_folder))
         else:
             return os.path.abspath(raw_folder)
@@ -96,14 +96,17 @@ class Taggo:
                 os.symlink(full_path, full_symlink_path)
 
     def help(self):
-        print 'Usage: taggo option\n'
-        print 'A defalt configuration file will be written if it doesnt exists.\n'
-        print 'Options:'
-        print '  help                 This help'
-        print '  run_once             Cleanup first and then creates the new tags.'
-        print '  cleanup              Look for and delete dead symlinks'
-        print '  make_tags            Create missing symlink tags'
-        print '  rename <from> <to>   Example "taggo rename People-Paul People-Family-Paul", or "taggo rename Pau Paul. Will only rename files, not tags.'
+        print "Usage: taggo option\n"
+        print "A default configuration file will be written if it doesn't exist.\n"
+        print "Options:"
+        print "  help                 This help"
+        print "  run_once             Cleanup first and then creates the new tags."
+        print "  cleanup              Look for and delete dead symlinks"
+        print "  make_tags            Create missing symlink tags"
+        print "  rename <from> <to>   Will only rename files, not tags."
+        print ""
+        print "Example: 'taggo rename People-Paul People-Family-Paul'"
+        print "         'taggo rename Pau Paul'"
 
     def write_config(self):
         config = ConfigParser.RawConfigParser()
