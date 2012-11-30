@@ -74,7 +74,7 @@ usage
      - Description
    * - ./taggo help
      - Display help
-   * - ./taggo run_once
+   * - ./taggo init
      - Delete dead symlinks in the tag folder, then goes trough and the ones we are missing.
    * - ./taggo cleanup
      - Deletes dead symlinks in the tag folder.
@@ -93,7 +93,7 @@ taggo.cfg
    * - Option
      - Description
    * - [general] debug
-     - Turn on (1) or off (1) extra debug when taggo is running
+     - Turn on (1) or off (0) extra debug when taggo is running
    * - [general] tag_indicator
      - Which tag should a tag begin with (default #)
    * - [general] subtag_separator
@@ -102,6 +102,8 @@ taggo.cfg
      - What to replace the / with when using the path in the name as %(rel_folders)s
    * - [general] tag_filenames
      - Filename to give tags (symlinks). %(rel_folders)s is replaced with related folders upto this folder. %(basename)s is replaced with the filename itself.
+   * - [general] ignore_hidden
+     - Ignore (1) or unignore (0) hidden folders when looking for hashtags (default 1).
    * - [paths] content_folder
      - Folder to look for files we can symlink to. Set it to example "./pictures" if there is a folder called pictures relative to taggo. Or use full path.
    * - [paths] tag_folder
