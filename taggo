@@ -24,6 +24,7 @@ class Taggo:
 
         self.content_folder = self._get_fullpath('content_folder')
         self.tags_folder = self._get_fullpath('tag_folder')
+        self.strip_dot_files = self.get_config('general', 'strip_dot_files', 'bool')
 
         self.tag_indicator = self.get_config('general', 'tag_indicator')
 
@@ -112,6 +113,7 @@ class Taggo:
         config.set('general', 'subtag_separator', '- ; Character to split the tag into sub-tags on.')
         config.set('general', 'rel_folders_replacer', '_')
         config.set('general', 'tag_filenames', '%(rel_folders)s - %(basename)s')
+        config.set('general', 'strip_dot_files', '1')
 
         config.add_section('paths')
         config.set('paths', 'content_folder', './pictures ; Full path or relative to main_folder if it starts with ./')
@@ -178,11 +180,16 @@ class Taggo:
         for root, dirs, files in os.walk(self.content_folder):
             basefolder = os.path.basename(root)
 
+            # Take away . files/folders
+            if not self.strip_dot_files:
+                dirs[:] = [d for d in dirs if not d.startswith('.')]
+
             if self.tag_indicator in basefolder:
                 self._make_symlink(root)
 
             for file in files:
                 if self.tag_indicator in file:
+                    if self.debug: print 'tag: %s' % file
                     full_path = '%s/%s' % (root, file)
                     self._make_symlink(full_path)
 
