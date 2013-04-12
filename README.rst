@@ -102,6 +102,8 @@ taggo.cfg
      - What to replace the / with when using the path in the name as %(rel_folders)s
    * - [general] tag_filenames
      - Filename to give tags (symlinks). %(rel_folders)s is replaced with related folders upto this folder. %(basename)s is replaced with the filename itself.
+   * - [general] strip_dot_files
+     - Take away folders/files if they starts with a . (default true)
    * - [paths] content_folder
      - Folder to look for files we can symlink to. Set it to example "./pictures" if there is a folder called pictures relative to taggo. Or use full path.
    * - [paths] tag_folder
