@@ -14,8 +14,18 @@ class Taggo:
 
     def __init__(self):
         self.mydir = os.path.dirname(os.path.abspath(__file__))
-        self.config_file = '%s/taggo.cfg' % self.mydir
-        if not os.path.isfile(self.config_file):
+
+        # Look for config
+        self.config_file = None
+        if os.path.isfile('%s/taggo.cfg' % self.mydir):
+            self.config_file = '%s/taggo.cfg' % self.mydir
+        else:
+            homepath = os.environ.get('HOME', None)
+            home_cfg = '%s/.taggo.cfg' % homepath
+            if os.path.isfile(home_cfg):
+                self.config_file = home_cfg
+
+        if not self.config_file:
             print 'Writing default config to %s\n' % self.config_file
             self.write_config()
 
