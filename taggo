@@ -5,6 +5,7 @@ import os
 import re
 import ConfigParser
 
+
 class Taggo:
     debug = False
     config = None
@@ -53,9 +54,10 @@ class Taggo:
                 b_empty = False
 
         if b_empty:
-            if self.debug: print 'deleting empty dir %s' % (s_dir,)
+            if self.debug:
+                print 'deleting empty dir %s' % (s_dir,)
 
-            os.rmdir(s_dir) # os.rmdir can only allowed to delete empty directories
+            os.rmdir(s_dir)  # os.rmdir can only allowed to delete empty directories
 
         return b_empty
 
@@ -84,7 +86,8 @@ class Taggo:
             tag_name = tag_filenames % replace_info
 
             if not os.path.isdir(tag_folder):
-                if self.debug: print '* Creating folder(s) %s' % tag_folder
+                if self.debug:
+                    print '* Creating folder(s) %s' % tag_folder
                 os.makedirs(tag_folder)
 
             full_symlink_path = os.path.join(tag_folder, tag_name)
@@ -171,11 +174,8 @@ class Taggo:
         Function that goes trough and creates missing tag folders and missing symlinks
         """
 
-        subtag_separator = self.get_config('general', 'subtag_separator')
-
         if self.debug:
             print 'Running make_tags()'
-            count = 0
 
         for root, dirs, files in os.walk(self.content_folder):
             basefolder = os.path.basename(root)
@@ -189,7 +189,8 @@ class Taggo:
 
             for file in files:
                 if self.tag_indicator in file:
-                    if self.debug: print 'tag: %s' % file
+                    if self.debug:
+                        print 'tag: %s' % file
                     full_path = '%s/%s' % (root, file)
                     self._make_symlink(full_path)
 
@@ -202,9 +203,9 @@ class Taggo:
         This is made so it can only possible delete symlinks and empty folders, in other words, it should be very safe to use :)
         """
 
-        if self.debug: print 'Running cleanup()'
-
-        if self.debug: print 'Starting removing dead links'
+        if self.debug:
+            print 'Running cleanup()'
+            print 'Starting removing dead links'
 
         for root, dirs, files in os.walk(self.tags_folder):
             if files:
@@ -213,11 +214,13 @@ class Taggo:
                         full_path = os.path.join(root, f)
                         if not os.path.exists(os.readlink(full_path)):
                             os.unlink(full_path)
-                            if self.debug: print 'Removing dead link %s' % full_path
+                            if self.debug:
+                                print 'Removing dead link %s' % full_path
                     except OSError:
                         pass
 
-        if self.debug: print 'Starting removing empty directories'
+        if self.debug:
+            print 'Starting removing empty directories'
         self._del_empty_dirs(self.tags_folder)
 
 if __name__ == '__main__':
@@ -242,7 +245,8 @@ if __name__ == '__main__':
         sys.exit(0)
 
     if len(sys.argv) == 4:
-        if arg == 'rename': taggo.rename(original=sys.argv[2], to=sys.argv[3])
+        if arg == 'rename':
+            taggo.rename(original=sys.argv[2], to=sys.argv[3])
         sys.exit(0)
 
     taggo.help()
