@@ -35,7 +35,8 @@ class Taggo:
 
         self.content_folder = self._get_fullpath('content_folder')
         self.tags_folder = self._get_fullpath('tag_folder')
-        self.strip_dot_files = self.get_config('general', 'strip_dot_files', 'bool')
+        self.strip_dot_files = self.get_config('general',
+                                               'strip_dot_files', 'bool')
 
         self.tag_indicator = self.get_config('general', 'tag_indicator')
 
@@ -72,7 +73,8 @@ class Taggo:
         return b_empty
 
     def _make_symlink(self, full_path):
-        rel_folders_replacer = self.get_config('general', 'rel_folders_replacer')
+        rel_folders_replacer = self.get_config('general',
+                                               'rel_folders_replacer')
         subtag_separator = self.get_config('general', 'subtag_separator')
         tag_filenames = self.get_config('general', 'tag_filenames')
 
@@ -110,26 +112,30 @@ class Taggo:
 
     def help(self):
         print 'Usage: taggo option\n'
-        print 'A defalt configuration file will be written if it doesnt exists.\n'
+        print "A default configuration file will be written if it doesn't exist.\n"
         print 'Options:'
-        print '  help             This help'
-        print '  run_once         Cleanup first, and then create new tags. Once'
-        print '  cleanup          Look for and delete dead symlinks'
-        print '  make_tags        Create missing symlink tags'
-        print '  rename from to   Example "taggo rename People-Paul People-Family-Paul", or "taggo rename Pau Paul. Will only rename files, not tags. Should run run_once after this.'
+        print '  help                 This text.'
+        print '  run_once             Cleanup first, and then create new tags. Once'
+        print '  cleanup              Look for and delete dead symlinks'
+        print '  make_tags            Create missing symlink tags'
+        print '  rename <from> <to>   Example "taggo rename People-Paul People-Family-Paul", or "taggo rename Pau Paul.'
+        print "                       This will only rename files, not tags, so you should run `run_once' after this."
 
     def write_config(self):
         config = ConfigParser.RawConfigParser()
         config.add_section('general')
         config.set('general', 'debug', '0 ; 1 is true, 0 is false')
         config.set('general', 'tag_indicator', '#')
-        config.set('general', 'subtag_separator', '- ; Character to split the tag into sub-tags on.')
+        config.set('general', 'subtag_separator',
+                   '- ; Character to split the tag into sub-tags on.')
         config.set('general', 'rel_folders_replacer', '_')
-        config.set('general', 'tag_filenames', '%(rel_folders)s - %(basename)s')
+        config.set('general', 'tag_filenames',
+                   '%(rel_folders)s - %(basename)s')
         config.set('general', 'strip_dot_files', '1')
 
         config.add_section('paths')
-        config.set('paths', 'content_folder', './pictures ; Full path or relative to main_folder if it starts with ./')
+        config.set('paths', 'content_folder',
+                   './pictures ; Full path or relative to main_folder if it starts with ./')
         config.set('paths', 'tag_folder', './tags ; Full path or relative to main_folder if it starts with ./')
 
         config_fp = open(self.config_file, 'wb')
@@ -181,7 +187,8 @@ class Taggo:
 
     def make_tags(self):
         """
-        Function that goes trough and creates missing tag folders and missing symlinks
+        Function that goes trough and creates missing tag folders and
+        missing symlinks
         """
 
         if self.debug:
@@ -206,11 +213,13 @@ class Taggo:
 
     def cleanup(self):
         """
-        Goes trough every symlink and check if they are still valid. If they are not, deletes them.
-        There is no good way to detect where they belongs now, and make_tags will recreate them with the
-        right path
+        Goes trough every symlink and checks if they are still valid.
+        If they are not, it deletes them. There is no good way to
+        detect where they belongs now, and make_tags will recreate
+        them with the right path
 
-        This is made so it can only possible delete symlinks and empty folders, in other words, it should be very safe to use :)
+        This is made so it's only possible to delete symlinks and empty
+        folders, in other words, it should be very safe to use :)
         """
 
         if self.debug:
