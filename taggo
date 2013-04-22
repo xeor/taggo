@@ -187,7 +187,7 @@ class Taggo:
 
     def make_tags(self):
         """
-        Function that goes trough and creates missing tag folders and
+        Function that goes through and creates missing tag folders and
         missing symlinks
         """
 
@@ -197,17 +197,24 @@ class Taggo:
         for root, dirs, files in os.walk(self.content_folder):
             basefolder = os.path.basename(root)
 
-            # Take away . files/folders
-            if not self.strip_dot_files:
+            # If the option self.strip_dot_files is defined,
+            # the dotfiles/dotfolders will be excluded.
+            if self.strip_dot_files:
                 dirs[:] = [d for d in dirs if not d.startswith('.')]
+                files[:] = [f for f in files if not f.startswith('.')]
 
             if self.tag_indicator in basefolder:
                 self._make_symlink(root)
 
             for file in files:
-                if self.tag_indicator in file:
+                # This line checks for the tag indicator and that the file
+                # is not being included from the folder that contains the
+                # symlinks that will be created with this loop.
+                if self.tag_indicator in file and not root.startswith(
+                        self.tags_folder):
+
                     if self.debug:
-                        print 'tag: %s' % file
+                        print 'tag: %s (from %s)' % (file, root)
                     full_path = '%s/%s' % (root, file)
                     self._make_symlink(full_path)
 
