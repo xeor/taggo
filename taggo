@@ -34,6 +34,7 @@ class Taggo:
         self.config.read(self.config_file)
         self.debug = self.get_config('general', 'debug', 'bool')
 
+        self.use_relative_links = self.get_config('general', 'use_relative_links', 'bool')
         self.content_folder = self._get_fullpath('content_folder')
         self.tags_folder = self._get_fullpath('tag_folder')
         self.strip_dot_files = self.get_config('general',
@@ -109,7 +110,12 @@ class Taggo:
                     print 'Source file: %s' % full_path
                     print 'Symlink', full_symlink_path
                     print
-                os.symlink(full_path, full_symlink_path)
+                if self.use_relative_links:
+                    sym_path = os.path.relpath(full_path, tag_folder)
+                else:
+                    sym_path = full_path
+                os.symlink(sym_path, full_symlink_path)
+
 
     def help(self):
         print 'Usage: taggo option\n'
@@ -127,6 +133,7 @@ class Taggo:
         config.add_section('general')
         config.set('general', 'debug', '0 ; 1 is true, 0 is false')
         config.set('general', 'tag_indicator', '#')
+        config.set('general', 'use_relative_links', '1 ; 1 is true, 0 is false')
         config.set('general', 'subtag_separator',
                    '- ; Character to split the tag into sub-tags on.')
         config.set('general', 'rel_folders_replacer', '_')
