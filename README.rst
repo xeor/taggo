@@ -98,6 +98,8 @@ taggo.cfg
      - Which tag should a tag begin with (default #)
    * - [general] subtag_separator
      - Character that separates subtags (default -)
+   * - [general] use_relative_links
+     - Turn on (1) or off (0) to create symlinks that uses relative paths or not. Default to using full path
    * - [general] rel_folders_replacer
      - What to replace the / with when using the path in the name as %(rel_folders)s
    * - [general] tag_filenames
