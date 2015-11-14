@@ -21,6 +21,7 @@ This project is in beta stage, please report bugs :)
 Resources
 ---------
 
+* `Dockerized version <https://github.com/xeor/dockerfiles/tree/master/taggo>`_
 * Project hosting `GitHub <https://github.com/xeor/taggo>`_.
 * Bug reports are handled on the `issue tracker
   <https://github.com/xeor/taggo/issues>`_.
