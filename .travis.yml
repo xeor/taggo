@@ -1,0 +1,21 @@
+deploy:
+  provider: pypi
+  distributions: sdist bdist_wheel
+  user: xeor
+  password:
+    secure: !!binary |
+      QThLY2lIQnhLYktXYWdOZjBYcktpSXNHcmRCV2RPZU8wVUcrSXFXUVpPK2NUV2pZdHJJSS9OYmxT
+      b0p0d21TekFUTS9SYzNsRktKcGd3ZkQ2RTZGYTd2RmRHbTJyVWV6NTA5VVoyTC9jRzRpbDZSNUha
+      M051bTN4WFJOZ0RscDUzZkkxeHBSakI1TXZ6aDI3NXNqUHVzSmVXNjVCeERMbGYrSGZmUkUyUWRV
+      PQ==
+  true:
+    python: 3.6
+    repo: xeor/taggo
+    tags: true
+install: pip install -U tox-travis
+language: python
+python:
+- 3.6
+- 3.5
+- 3.4
+script: tox

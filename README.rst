@@ -1,43 +1,43 @@
 taggo
 =====
 
+.. image:: https://img.shields.io/pypi/v/taggo.svg
+        :target: https://pypi.python.org/pypi/taggo
+
+.. image:: https://img.shields.io/travis/xeor/taggo.svg
+        :target: https://travis-ci.org/xeor/taggo
+
+.. image:: https://readthedocs.org/projects/taggo/badge/?version=latest
+        :target: https://taggo.readthedocs.io/en/latest/?badge=latest
+        :alt: Documentation Status
+
+.. image:: https://pyup.io/repos/github/xeor/taggo/shield.svg
+     :target: https://pyup.io/repos/github/xeor/taggo/
+     :alt: Updates
+
 Tag organizer that uses names of files and folders to create symlinks.
 Tags are defined by using #hashtags in the name. They can also be as many sub levels as you want, like #sub-hash-tag
 
-:Status:
-    Beta stage.. Report bugs :)
-:Documentation:
-    This page
-:Author:
-    Lars Solberg
-:Blog post:
-    http://blog.boa.nu/2012/11/tagging-files-and-folders-using-hashtags-and-symlinks.html
+**I'm currently remastering this repo, please use https://github.com/xeor/taggo/tree/0.2 for the newest working version**
+
+* Free software: MIT license
+* Documentation: https://taggo.readthedocs.io
+* Source: https://github.com/xeor/taggo
+* Issues: https://github.com/xeor/taggo/issues
 
 Introduction
 ------------
 
 This project is in beta stage, please report bugs :)
-
-Resources
----------
-
-* Project hosting `GitHub <https://github.com/xeor/taggo>`_.
-* Bug reports are handled on the `issue tracker
-  <https://github.com/xeor/taggo/issues>`_.
-
-Any questions, thoughts, bugs are very welcome!
+I wrote a blogpost back in 2012 about the initial version. It is still relevant (writing in 2017).
+http://blog.boa.nu/2012/11/tagging-files-and-folders-using-hashtags-and-symlinks.html
 
 
 Requirements
 ------------
 
-* Python 2.6 or newer (not 3.x)
+* Python 3.5 or newer (maybe other 3.x as well, not sure)
 
-Installation
-------------
-
-The only file you will need is the one called taggo. It creates a file
-called taggo.cfg if it doesnt exists in the same directory.
 
 What it does
 ------------
@@ -53,7 +53,7 @@ Here are some examples
    * - Fil/folder names
      - Creates
    * - A random name.jpg
-     - 
+     -
    * - dcim1234 #People-Lars #food.jpg
      - 1 link in a folder People/Lars/... and one in food/
    * - 2012-09-25 Oslo tour #Earth-Europe-Norway-Oslo/dcim123...
@@ -63,59 +63,12 @@ Here are some examples
    * - dcim321#tag2.jpg
      - Nothing, a tag needs a space, . or , in front and back of the tag.
 
-usage
------
-
-.. list-table:: Commandline options
-   :widths: 10 40
-   :header-rows: 1
-
-   * - Command
-     - Description
-   * - ./taggo help
-     - Display help
-   * - ./taggo run_once
-     - Delete dead symlinks in the tag folder, then goes trough and the ones we are missing.
-   * - ./taggo cleanup
-     - Deletes dead symlinks in the tag folder.
-   * - ./taggo make_tags
-     - Creates new tags
-   * - ./taggo rename FROM TO
-     - Renames tags in the filenames themself. Useful if you have files with tag typos or if you want to do a cleanup. Support both folders and files. Note that this does not change the symlinks, only sourcefiles. You should run run_once after renaming.
-
-taggo.cfg
----------
-
-.. list-table:: Configuration options
-   :widths: 10 40
-   :header-rows: 1
-
-   * - Option
-     - Description
-   * - [general] debug
-     - Turn on (1) or off (1) extra debug when taggo is running
-   * - [general] tag_indicator
-     - Which tag should a tag begin with (default #)
-   * - [general] subtag_separator
-     - Character that separates subtags (default -)
-   * - [general] rel_folders_replacer
-     - What to replace the / with when using the path in the name as %(rel_folders)s
-   * - [general] tag_filenames
-     - Filename to give tags (symlinks). %(rel_folders)s is replaced with related folders upto this folder. %(basename)s is replaced with the filename itself.
-   * - [general] strip_dot_files
-     - Take away folders/files if they starts with a . (default true)
-   * - [paths] content_folder
-     - Folder to look for files we can symlink to. Set it to example "./pictures" if there is a folder called pictures relative to taggo. Or use full path.
-   * - [paths] tag_folder
-     - Same as content_folder, except this is the folder where we are going to place the symlinks.
-
 FAQ
 ---
 
 * Why the name taggo?
 
-  * I just wanted a name for this for now.. Got any better names,
-    please share
+  * It's a tagging tool. It does stuff with tags. What do you suggest? Tagging, taggs, tags, tag2fold... no.. Taggo!
 
 * Why do you want to create tags with symlinks?
 
