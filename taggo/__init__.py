@@ -74,15 +74,15 @@ class TaggoOld:
     def __init__(self):
         self.mydir = os.path.dirname(os.path.abspath(__file__))
 
-        # Look for config
+        # Look for config file in the taggo directory. If it's not
+        # found, then we'll assume we want to use $HOME/.taggo.cfg
         self.config_file = None
         if os.path.isfile('%s/taggo.cfg' % self.mydir):
             self.config_file = '%s/taggo.cfg' % self.mydir
         else:
-            homepath = os.environ.get('HOME', None)
-            home_cfg = '%s/.taggo.cfg' % homepath
-            if os.path.isfile(home_cfg):
-                self.config_file = home_cfg
+            home_path = os.environ.get('HOME', None)
+            home_cfg = '%s/.taggo.cfg' % home_path
+            self.config_file = home_cfg
 
         if not self.config_file:
             #print 'Writing default config to %s\n' % self.config_file
@@ -92,6 +92,7 @@ class TaggoOld:
         self.config.read(self.config_file)
         self.debug = self.get_config('general', 'debug', 'bool')
 
+        self.use_relative_links = self.get_config('general', 'use_relative_links', 'bool')
         self.content_folder = self._get_fullpath('content_folder')
         self.tags_folder = self._get_fullpath('tag_folder')
         self.strip_dot_files = self.get_config('general',
@@ -186,6 +187,7 @@ class TaggoOld:
         config.add_section('general')
         config.set('general', 'debug', '0 ; 1 is true, 0 is false')
         config.set('general', 'tag_indicator', '#')
+        config.set('general', 'use_relative_links', '1 ; 1 is true, 0 is false')
         config.set('general', 'subtag_separator',
                    '- ; Character to split the tag into sub-tags on.')
         config.set('general', 'rel_folders_replacer', '_')

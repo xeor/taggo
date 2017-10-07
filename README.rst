@@ -29,8 +29,8 @@ Introduction
 ------------
 
 This project is in beta stage, please report bugs :)
-I wrote a blogpost back in 2012 about the initial version. It is still relevant (writing in 2017).
-http://blog.boa.nu/2012/11/tagging-files-and-folders-using-hashtags-and-symlinks.html
+
+Any questions, thoughts, bugs are very welcome!
 
 
 Requirements
