@@ -7,6 +7,9 @@ taggo
 .. image:: https://img.shields.io/travis/xeor/taggo.svg
         :target: https://travis-ci.org/xeor/taggo
 
+.. image:: https://img.shields.io/coveralls/xeor/taggo.svg
+        :target: https://coveralls.io/github/xeor/taggo?branch=master
+
 .. image:: https://readthedocs.org/projects/taggo/badge/?version=latest
         :target: https://taggo.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
