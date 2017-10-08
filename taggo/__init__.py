@@ -4,7 +4,7 @@ import argparse
 
 __author__ = """Lars Solberg"""
 __email__ = 'lars.solberg@gmail.com'
-__version__ = '0.4.2'
+__version__ = '0.4.3'
 
 logger = logging.getLogger("taggo")
 
