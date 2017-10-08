@@ -5,8 +5,7 @@
 
 import pytest
 
-
-from taggo import taggo
+import taggo
 
 
 @pytest.fixture

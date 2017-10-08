@@ -32,7 +32,7 @@ class Taggo:
         pass
 
 
-def main():
+def main(known_args=None):
     parser = argparse.ArgumentParser(
         description="Create symlinks to files/folders based on their names"
     )
@@ -71,7 +71,7 @@ def main():
         help="Source folder, the folder containing your symlinks"
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(known_args)
 
     setup_log(args.debug)
 
