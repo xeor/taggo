@@ -39,6 +39,11 @@ setup(
     license="MIT license",
     zip_safe=False,
     keywords='taggo',
+    entry_points={
+        'console_scripts': [
+            'taggo = taggo:main',
+        ]
+    },
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',

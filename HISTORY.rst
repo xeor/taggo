@@ -2,10 +2,10 @@
 History
 =======
 
-0.3.0 (2017-10-07)
+0.4.0 (2017-10-08)
 ------------------
 
-* First release on PyPI.
+* Test on PyPI.. Non working version.
 
 0.2 (2017-10-07)
 ------------------
