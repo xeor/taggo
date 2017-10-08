@@ -36,7 +36,7 @@ Any questions, thoughts, bugs are very welcome!
 Requirements
 ------------
 
-* Python 3.5 or newer (maybe other 3.x as well, not sure)
+* Python 3.6 or newer (mostly because of fstring)
 
 
 What it does
