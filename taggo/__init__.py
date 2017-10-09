@@ -23,7 +23,7 @@ def setup_log(debug=False):
 
 class Taggo:
     def __init__(self, args):
-        logger.debug(f"Initializing using options: {args.__dict__}")
+        logger.debug("Initializing using options: {}".format(args.__dict__))
 
     def run(self):
         pass
@@ -81,3 +81,4 @@ def main(known_args=None):
 
 if __name__ == "__main__":
     main()
+
