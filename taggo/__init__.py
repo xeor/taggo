@@ -10,11 +10,11 @@ __version__ = '0.4.4'
 logger = logging.getLogger("taggo")
 
 
-class TaggoException(Exception):
+class Error(Exception):
     pass
 
 
-class ErrorInArgumentException(TaggoException):
+class NonExistingPath(Error):
     pass
 
 
@@ -29,14 +29,6 @@ def setup_log(debug=False):
         format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
-def _verify_path_exist(path, name):
-    if not os.path.isdir(path):
-        raise ErrorInArgumentException("Unable to find {} {} ({})".format(
-            name,
-            path,
-            os.path.abspath(path)
-        ))
-
 
 class Taggo:
     hashtag_re = re.compile(r'\B#([^ \.,]+)\b')
@@ -44,7 +36,7 @@ class Taggo:
     # What should we name the file inside the folder belonging to a tag?
     # You should include enough data here so we wont get a name-conflict.
     # In case of conflicts, it will get overwritten, we do no check..
-    tagged_file_name = "{rel_folders} - {basename}"
+    tag_filename_template = "{rel_folders} - {basename}"
 
     def __init__(self, args):
         self.args = args
@@ -52,56 +44,93 @@ class Taggo:
 
     def run(self):
         logger.debug("run()")
-        _verify_path_exist(self.args.src, 'src-path')
-        if os.path.exists(self.args.dst):
-            logger.debug("dst path exists")
-            if not os.path.isdir(self.args.dst):
-                raise ErrorInArgumentException('dst exists and is not a directory')
+
+        src_path = os.path.abspath(self.args.src)
+        dst_path = os.path.abspath(self.args.dst)
+        logger.debug("Using src-path: {}".format(src_path))
+        logger.debug("Using dst-path: {}".format(dst_path))
+
+        if not os.path.isdir(src_path):
+            raise NonExistingPath("Didnt find src-path: {}".format(src_path))
+
+        if os.path.exists(dst_path):
+            if os.path.isdir(self.args.dst):
+                logger.debug("dst path exists and is a folder")
+            else:
+                raise NonExistingPath("dst exist but is not a folder. Cant continue")
         else:
             logger.debug("dst folder not found, creating")
-            os.makedirs(self.args.dst)
+            if not self.args.dry:
+                os.makedirs(self.args.dst)
 
-        _verify_path_exist(self.args.dst, 'dst-path')
-        logger.debug("Using paths src({}), dst({})".format(
-            self.args.src, self.args.dst
-        ))
-
-        # Information we can use with tagged_file_name to decide what to name
+        # Information we can use with tag_filename_template to decide what to name
         # the file inside the tagged folder.
-        tagged_file_meta = {
+        template_data = {
             'rel_folders': '',  # Folders where we found the file, / replaced with _
             'basename': '',  # Original filename
         }
 
-        for dirpath, dirnames, filenames in os.walk(self.args.src):
+        # Change the folder to make it easier for ourself when getting
+        # names of paths to use in link-names
+        os.chdir(src_path)
+
+        logger.debug('Changing folder to {} to start the search'.format(src_path))
+        for dirpath, dirnames, filenames in os.walk('.'):
             logger.debug("Checking directory: {}".format(dirpath))
+
             relative_path = dirpath.split(os.path.sep)
-            if len(relative_path) == 1:
-                tagged_file_meta['rel_folders'] = 'root'
+            current_folder = relative_path[-1]
+            relative_path.pop(0)  # Remove the "." entry
+
+            if relative_path:
+                template_data['rel_folders'] = '_'.join(relative_path)
             else:
-                tagged_file_meta['rel_folders'] = '_'.join(relative_path)
+                template_data['rel_folders'] = 'root'
+            logger.debug("Relative path template-data is: {}".format(template_data['rel_folders']))
+
+            if "#" in current_folder:
+                logger.debug("  Found # in dirname, making symlink")
 
             for filename in filenames:
                 if "#" not in filename:
-                    # quick way to skip
                     continue
 
-                tagged_file_meta['basename'] = filename
+                template_data['basename'] = filename
+
                 tags = set(self.hashtag_re.findall(filename))
-                fullpath = os.path.join(dirpath, filename)
-                logger.debug("  file({}), tags({})".format(
-                    filename, tags
-                ))
+                logger.debug("  file({}) have tags({})".format(filename, tags))
+
+                full_file_path = os.path.join(dirpath, filename)
 
                 for tag in tags:
                     tag = tag.replace("-", os.path.sep)
-                    tag_folder = os.path.join(self.args.dst, tag)
-                    tag_name = self.tagged_file_name.format(**tagged_file_meta)
-                    logger.debug("    making tag {}".format(tag_name))
+
+                    # Full folder where we will put our symlink. We replaces - with folder-separator
+                    # so we can use the #tag-tag2 as a way of making tags in tags.. Nested
+                    tag_folder = os.path.join(dst_path, tag.replace("-", os.path.sep))
+
+                    tag_filename = self.tag_filename_template.format(**template_data)
+
+                    # Find the related path to the file, from our symlink.
+                    symlink_destination = os.path.relpath(full_file_path, tag_folder)
+
+                    full_symlink_path = os.path.join(tag_folder, tag_filename)
 
                     if not os.path.isdir(tag_folder):
-                        logger.debug("    making directory: {}".format(tag_folder))
-                        #os.makedirs(tag_folder)
+                        logger.debug("    making tag-directory: {}".format(tag_folder))
+                        if not self.args.dry:
+                            os.makedirs(tag_folder)
+
+                    logger.debug("    making symlink:")
+                    logger.debug("      in: {}".format(full_symlink_path))
+                    logger.debug("      to: {}".format(symlink_destination))
+
+                    if not self.args.dry:
+                        try:
+                            os.symlink(symlink_destination, full_symlink_path)
+                        except FileExistsError:
+                            pass
+
 
 
     def cleanup(self):
@@ -155,7 +184,7 @@ def main(known_args=None):
 
     try:
         getattr(t, args.cmd)()
-    except TaggoException as e:
+    except Error as e:
         logger.error(e)
 
 if __name__ == "__main__":
