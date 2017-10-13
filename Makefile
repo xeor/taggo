@@ -51,16 +51,18 @@ lint: ## check style with flake8
 	flake8 taggo tests
 
 test: ## run tests quickly with the default Python
-	py.test
-	
+	python3 -m pytest --basetemp=temp
+
+test-pdb:
+	python3 -m pytest --basetemp=temp --pdb
 
 test-all: ## run tests on every Python version with tox
 	tox
 
 coverage: ## check code coverage quickly with the default Python
-	coverage run --source taggo -m pytest
-	coverage report -m
-	coverage html
+	python3 -m coverage run --source taggo -m pytest
+	python3 -m coverage report -m
+	python3 -m coverage html
 	$(BROWSER) htmlcov/index.html
 
 docs: ## generate Sphinx HTML documentation, including API docs
