@@ -14,20 +14,8 @@ class Error(Exception):
     pass
 
 
-class NonExistingPath(Error):
+class FolderException(Error):
     pass
-
-
-def setup_log(debug=False):
-    if debug or os.environ.get("DEBUG"):
-        loglevel = logging.DEBUG
-    else:
-        loglevel = logging.INFO
-
-    logging.basicConfig(
-        level=loglevel,
-        format="%(asctime)s - %(levelname)s - %(message)s"
-    )
 
 
 class Taggo:
@@ -39,8 +27,14 @@ class Taggo:
     tag_filename_template = "{rel_folders} - {basename}"
 
     def __init__(self, args):
+        self.origin_cwd = os.getcwd()
         self.args = args
         logger.debug("Initializing using options: {}".format(args.__dict__))
+
+    def __del__(self):
+        # Try to get back to our original directory after we are done.
+        # Not normally that important, but usefull in some cases, example for testing.
+        os.chdir(self.origin_cwd)
 
     def run(self):
         logger.debug("run()")
@@ -51,13 +45,13 @@ class Taggo:
         logger.debug("Using dst-path: {}".format(dst_path))
 
         if not os.path.isdir(src_path):
-            raise NonExistingPath("Didnt find src-path: {}".format(src_path))
+            raise FolderException("Didnt find src-path: {}".format(src_path))
 
         if os.path.exists(dst_path):
             if os.path.isdir(self.args.dst):
                 logger.debug("dst path exists and is a folder")
             else:
-                raise NonExistingPath("dst exist but is not a folder. Cant continue")
+                raise FolderException("dst exist but is not a folder. Cant continue")
         else:
             logger.debug("dst folder not found, creating")
             if not self.args.dry:
@@ -137,7 +131,7 @@ class Taggo:
         pass
 
 
-def main(known_args=None):
+def main(known_args=None, reraise=False):
     parser = argparse.ArgumentParser(
         description="Create symlinks to files/folders based on their names"
     )
@@ -149,6 +143,9 @@ def main(known_args=None):
 
     subparsers = parser.add_subparsers(dest='cmd')
     subparsers.required = True
+
+    # rename
+    # cleanup
 
     parser_run = subparsers.add_parser('run')
     parser_run.add_argument(
@@ -178,7 +175,11 @@ def main(known_args=None):
 
     args = parser.parse_args(known_args)
 
-    setup_log(args.debug)
+    logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s")
+    if args.debug or os.environ.get("DEBUG"):
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
 
     t = Taggo(args)
 
@@ -186,6 +187,8 @@ def main(known_args=None):
         getattr(t, args.cmd)()
     except Error as e:
         logger.error(e)
+        if reraise:
+            raise
 
 if __name__ == "__main__":
     main()
