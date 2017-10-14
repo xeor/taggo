@@ -216,6 +216,6 @@ def main(known_args=None, reraise=False):
         if reraise:
             raise
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__":  # pragma: no cover
+    main()  # pragma: no cover
 
