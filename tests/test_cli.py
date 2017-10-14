@@ -44,11 +44,7 @@ def test_run_dry(capsys):
 def test_nonexisting_dst(capsys):
     tmp = "temp/test_nonexisting_dst/{}".format(str(random.random()))
     taggo.main(["run", "tests/tagged_files/", tmp])
-    assert os.path.isfile(
-        '{}/øl/folders_pictures_2012 #Oslo tour_fishes - a file     many #tag spaces #øl #nårsk tag.txt'.format(
-            tmp
-        )
-    )
+    assert os.path.isdir('{}/root'.format(tmp))
 
 
 def test_existing_dst(capsys):
