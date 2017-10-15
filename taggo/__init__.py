@@ -172,6 +172,36 @@ class Taggo:
                     if not self.args.dry:
                         os.unlink(full_path)
 
+    def rename(self):
+        pass
+
+    def info(self):
+        src_path = os.path.abspath(self.args.src)
+        logger.debug("Using src-path: {}".format(src_path))
+
+        if not os.path.isdir(src_path):
+            raise FolderException("Didnt find src-path: {}".format(src_path))
+
+        folder_tags = []
+        file_tags = []
+        for root, dirs, files in os.walk(src_path):
+            for d in dirs:
+                folder_tags += hashtag_re.findall(d)
+            for f in files:
+                file_tags += hashtag_re.findall(f)
+
+        folder_tags = sorted(set(folder_tags))
+        file_tags = sorted(set(file_tags))
+
+        print("Folder tags:")
+        for folder_tag in folder_tags:
+            print("  {}".format(folder_tag))
+
+        print()
+        print("File tags:")
+        for file_tag in file_tags:
+            print("  {}".format(file_tag))
+
 
 def main(known_args=None, reraise=False):
     parser = argparse.ArgumentParser(
@@ -180,16 +210,14 @@ def main(known_args=None, reraise=False):
     parser.add_argument(
         "--debug",
         action="store_true",
-        help="Set loglevel/verbosity. Higher == more output",
+        help="Print extra info about what we are doing",
     )
 
-    subparsers = parser.add_subparsers(dest='cmd')
+    subparsers = parser.add_subparsers(dest="cmd")
     subparsers.required = True
 
-    # rename
-    # cleanup
-
-    parser_run = subparsers.add_parser('run')
+    # run
+    parser_run = subparsers.add_parser("run", help="")
     parser_run.add_argument(
         "--dry",
         help="Dont actually do anything",
@@ -204,7 +232,8 @@ def main(known_args=None, reraise=False):
         help="Destination folder, folder to store the tags/symlinks"
     )
 
-    parser_cleanup = subparsers.add_parser('cleanup')
+    # cleanup
+    parser_cleanup = subparsers.add_parser("cleanup", help="Remove dead symlinks from src")
     parser_cleanup.add_argument(
         "--dry",
         help="Dont actually do anything",
@@ -213,6 +242,33 @@ def main(known_args=None, reraise=False):
     parser_cleanup.add_argument(
         "src",
         help="Source folder, the folder containing your symlinks"
+    )
+
+    # rename
+    parser_cleanup = subparsers.add_parser("rename", help="Rename an existing tag")
+    parser_cleanup.add_argument(
+        "--dry",
+        help="Dont actually do anything",
+        action="store_true"
+    )
+    parser_cleanup.add_argument(
+        "src",
+        help="Source folder, the folder containing your tagged files (not the symlinks)"
+    )
+    parser_cleanup.add_argument(
+        "from",
+        help="Old original tag"
+    )
+    parser_cleanup.add_argument(
+        "to",
+        help="New tag"
+    )
+
+    # info
+    parser_cleanup = subparsers.add_parser("info", help="List existing tags and some info")
+    parser_cleanup.add_argument(
+        "src",
+        help="Source folder, the folder containing your tagged files (not the symlinks)"
     )
 
     args = parser.parse_args(known_args)
