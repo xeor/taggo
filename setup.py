@@ -27,7 +27,7 @@ test_requirements = [
 
 setup(
     name='taggo',
-    version='1.1.0',
+    version='0.5.0',
     description="Tag organizer that creates symlinks from filename-tags",
     long_description=readme + '\n\n' + history,
     author="Lars Solberg",
@@ -45,7 +45,7 @@ setup(
         ]
     },
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 2 - Alpha',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
