@@ -33,7 +33,7 @@ setup(
     author="Lars Solberg",
     author_email='lars.solberg@gmail.com',
     url='https://github.com/xeor/taggo',
-    packages=find_packages(include=['taggo']),
+    packages=find_packages(include=['taggo'], exclude=['tests']),
     include_package_data=True,
     install_requires=requirements,
     license="MIT license",
@@ -45,8 +45,11 @@ setup(
         ]
     },
     classifiers=[
-        'Development Status :: 2 - Alpha',
+        'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
+        'Intended Audience :: Information Technology',
+        'Intended Audience :: System Administrators',
+        'Topic :: System :: Filesystems',
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3.6',
