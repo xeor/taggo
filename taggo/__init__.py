@@ -131,7 +131,6 @@ class Taggo:
                 symlink_name_data['rel_folders'] = 'root'
 
             if "#" in current_folder:
-                logger.debug("DIR  Found # in directory-name {}".format(current_folder))
                 self._make_symlinks(
                     os.path.basename(dirpath),
                     symlink_name_data,
@@ -152,9 +151,26 @@ class Taggo:
                     is_file=True
                 )
 
-
     def cleanup(self):
-        pass
+        src_path = os.path.abspath(self.args.src)
+        if not os.path.isdir(src_path):
+            raise FolderException("Didnt find src directory: {}".format(src_path))
+
+        for root, dirs, files in os.walk(src_path):
+            for f in files:
+                full_path = os.path.join(root, f)
+                if not os.path.islink(full_path):
+                    continue
+
+                link_path = os.path.join(root, os.readlink(full_path))
+                exists = True if os.path.exists(link_path) else False
+                logger.debug("Symlink: {}".format(full_path))
+                logger.debug("  points to: {}".format(link_path))
+                logger.debug("  destination exist: {}".format(exists))
+                if not exists:
+                    logger.debug("  deleting...")
+                    if not self.args.dry:
+                        os.unlink(full_path)
 
 
 def main(known_args=None, reraise=False):
