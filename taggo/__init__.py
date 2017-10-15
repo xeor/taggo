@@ -5,7 +5,7 @@ import argparse
 
 __author__ = """Lars Solberg"""
 __email__ = 'lars.solberg@gmail.com'
-__version__ = '0.5.0'
+__version__ = '1.0.0'
 
 logger = logging.getLogger("taggo")
 hashtag_re = re.compile(r'\B#([^ \.,]+)\b')
