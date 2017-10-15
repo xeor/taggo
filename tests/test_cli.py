@@ -3,6 +3,7 @@
 
 import os
 import random
+import shutil
 
 import pytest
 import taggo
@@ -81,4 +82,31 @@ def test_via_python_command(capsys):
 
 
 def test_cleanup(capsys):
-    taggo.main(["cleanup", "temp/cleanup_test"])
+    tmp = "temp/test_cleanup/{}".format(str(random.random()))
+    shutil.copytree("tests/test_files/cleanup_test", tmp, symlinks=True)
+
+    assert os.path.isfile("{}/file".format(tmp))
+    for f in [
+        "existing-symlink-then-nonexist",
+        "symlink-loop-a",
+        "existing-symlink1",
+        "existing-symlink3",
+        "nonexisting-symlink"
+    ]:
+        assert os.path.islink("{}/a folder/{}".format(tmp, f))
+
+    taggo.main(["cleanup", tmp])
+
+    assert os.path.isfile("{}/file".format(tmp))
+    for f in [
+        "existing-symlink-then-nonexist",
+        "symlink-loop-a",
+        "nonexisting-symlink"
+    ]:
+        assert os.path.islink("{}/a folder/{}".format(tmp, f)) is False
+
+    for f in [
+        "existing-symlink1",
+        "existing-symlink3"
+    ]:
+        assert os.path.islink("{}/a folder/{}".format(tmp, f))
