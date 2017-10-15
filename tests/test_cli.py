@@ -81,6 +81,11 @@ def test_via_python_command(capsys):
     assert b"show this help message and exit" in proc.stdout.read()
 
 
+def test_cleanup_dst_err():
+    with pytest.raises(taggo.FolderException, match="Didnt find src directory: .*"):
+        taggo.main(["cleanup", "nonexisting"], reraise=True)
+
+
 def test_cleanup(capsys):
     tmp = "temp/test_cleanup/{}".format(str(random.random()))
     shutil.copytree("tests/test_files/cleanup_test", tmp, symlinks=True)
