@@ -173,7 +173,53 @@ class Taggo:
                         os.unlink(full_path)
 
     def rename(self):
-        pass
+        src_path = os.path.abspath(self.args.src)
+        if not os.path.isdir(src_path):
+            raise FolderException("Didnt find src directory: {}".format(src_path))
+        logger.debug("Will look in folder '{}' for tags to rename from '{}' to '{}'".format(
+            src_path, self.args.original, self.args.new
+        ))
+
+        original_tag = "#{}".format(self.args.original)
+        if not hashtag_re.fullmatch(original_tag):
+            raise Error("Invalid hashtag: '{}'".format(original_tag))
+
+        new_tag = "#{}".format(self.args.new)
+        if not hashtag_re.fullmatch(new_tag):
+            raise Error("Invalid hashtag: '{}'".format(new_tag))
+
+        queue = []
+        logger.debug("Starting collecting list of files/folders to rename:")
+        for root, dirs, files in os.walk(src_path):
+            if dirs:
+                for d in dirs:
+                    if original_tag in d:
+                        full_path = os.path.join(root, d)
+                        logger.debug("  Found directory: {}".format(full_path))
+                        queue.append(full_path)
+
+            if files:
+                for f in files:
+                    if original_tag in f:
+                        full_path = os.path.join(root, f)
+                        logger.debug("  Found file: {}".format(full_path))
+                        queue.append(full_path)
+
+        # Start with the longest path, so we can be sure that we are not renaming a
+        # folder that contains another file or folder we also should rename.
+        # We must sort, or be dirty in the os.walk loop. This is much cleaner.
+        for e in sorted(queue, key=len, reverse=True):
+            dirname = os.path.dirname(e)
+            old_basename = os.path.basename(e)
+            new_basename = old_basename.replace(original_tag, new_tag)
+            logger.debug("Renaming: {}{}{{{} -> {}}}".format(
+                dirname,
+                os.path.sep,
+                old_basename,
+                new_basename
+            ))
+            if not self.args.dry:
+                os.rename(e, os.path.join(dirname, new_basename))
 
     def info(self):
         src_path = os.path.abspath(self.args.src)
@@ -256,12 +302,12 @@ def main(known_args=None, reraise=False):
         help="Source folder, the folder containing your tagged files (not the symlinks)"
     )
     parser_cleanup.add_argument(
-        "from",
-        help="Old original tag"
+        "original",
+        help="Original tag you want to replace (no #)"
     )
     parser_cleanup.add_argument(
-        "to",
-        help="New tag"
+        "new",
+        help="New tag, without the #"
     )
 
     # info
