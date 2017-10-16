@@ -172,6 +172,9 @@ class Taggo:
                     if not self.args.dry:
                         os.unlink(full_path)
 
+        # FIXME: Delete empty directories..
+
+
     def rename(self):
         src_path = os.path.abspath(self.args.src)
         if not os.path.isdir(src_path):
@@ -187,6 +190,9 @@ class Taggo:
         new_tag = "#{}".format(self.args.new)
         if not hashtag_re.fullmatch(new_tag):
             raise Error("Invalid hashtag: '{}'".format(new_tag))
+
+        if original_tag == new_tag:
+            raise Error("There is no need to rename tag to the same...?")
 
         queue = []
         logger.debug("Starting collecting list of files/folders to rename:")
@@ -212,7 +218,7 @@ class Taggo:
             dirname = os.path.dirname(e)
             old_basename = os.path.basename(e)
             new_basename = old_basename.replace(original_tag, new_tag)
-            logger.debug("Renaming: {}{}{{{} -> {}}}".format(
+            logger.info("Renaming: {}{}{{{} -> {}}}".format(
                 dirname,
                 os.path.sep,
                 old_basename,
@@ -319,10 +325,11 @@ def main(known_args=None, reraise=False):
 
     args = parser.parse_args(known_args)
 
-    logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s")
     if args.debug or os.environ.get("DEBUG"):
+        logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s")
         logger.setLevel(logging.DEBUG)
     else:
+        logging.basicConfig(format="%(message)s")
         logger.setLevel(logging.INFO)
 
     t = Taggo(args)
