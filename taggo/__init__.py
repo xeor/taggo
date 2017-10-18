@@ -3,19 +3,14 @@ import os
 import logging
 import argparse
 
+from . import (exceptions, utils)
+
 __author__ = """Lars Solberg"""
 __email__ = 'lars.solberg@gmail.com'
 __version__ = '0.6.1'
 
 logger = logging.getLogger("taggo")
 hashtag_re = re.compile(r'\B#([^ \.,]+)\b')
-
-class Error(Exception):
-    pass
-
-
-class FolderException(Error):
-    pass
 
 
 class Taggo:
@@ -94,13 +89,13 @@ class Taggo:
         logger.debug("Using dst-path: {}".format(dst_path))
 
         if not os.path.isdir(src_path):
-            raise FolderException("Didnt find src-path: {}".format(src_path))
+            raise exceptions.FolderException("Didnt find src-path: {}".format(src_path))
 
         if os.path.exists(dst_path):
             if os.path.isdir(self.args.dst):
                 logger.debug("dst path exists and is a folder")
             else:
-                raise FolderException("dst exist but is not a folder. Cant continue")
+                raise exceptions.FolderException("dst exist but is not a folder. Cant continue")
         else:
             logger.debug("dst folder not found, creating")
             if not self.args.dry:
@@ -154,7 +149,7 @@ class Taggo:
     def cleanup(self):
         src_path = os.path.abspath(self.args.src)
         if not os.path.isdir(src_path):
-            raise FolderException("Didnt find src directory: {}".format(src_path))
+            raise exceptions.FolderException("Didnt find src directory: {}".format(src_path))
 
         for root, dirs, files in os.walk(src_path):
             for f in files:
@@ -163,50 +158,53 @@ class Taggo:
                     continue
 
                 link_path = os.path.join(root, os.readlink(full_path))
-                exists = True if os.path.exists(link_path) else False
+                exists = os.path.exists(link_path)
                 logger.debug("Symlink: {}".format(full_path))
                 logger.debug("  points to: {}".format(link_path))
                 logger.debug("  destination exist: {}".format(exists))
                 if not exists:
-                    logger.debug("  deleting...")
+                    logger.info("Deleting symlink {}".format(full_path))
                     if not self.args.dry:
                         os.unlink(full_path)
 
-        # FIXME: Delete empty directories..
-
+        # This will eventually trigger another os.walk on what we just looped over.
+        # But we might have just cleaned out a lot of old files, making folders empty after
+        # our part1 cleanup. Doing it again is quick, and much less error prune than baking
+        # in the logic in the loop above.
+        utils.remove_empty_folders(src_path, remove_root=False)
 
     def rename(self):
         src_path = os.path.abspath(self.args.src)
         if not os.path.isdir(src_path):
-            raise FolderException("Didnt find src directory: {}".format(src_path))
+            raise exceptions.FolderException("Didnt find src directory: {}".format(src_path))
         logger.debug("Will look in folder '{}' for tags to rename from '{}' to '{}'".format(
             src_path, self.args.original, self.args.new
         ))
 
         original_tag = "#{}".format(self.args.original)
         if not hashtag_re.fullmatch(original_tag):
-            raise Error("Invalid hashtag: '{}'".format(original_tag))
+            raise exceptions.Error("Invalid hashtag: '{}'".format(original_tag))
 
         new_tag = "#{}".format(self.args.new)
         if not hashtag_re.fullmatch(new_tag):
-            raise Error("Invalid hashtag: '{}'".format(new_tag))
+            raise exceptions.Error("Invalid hashtag: '{}'".format(new_tag))
 
         if original_tag == new_tag:
-            raise Error("There is no need to rename tag to the same...?")
+            raise exceptions.Error("There is no need to rename tag to the same...?")
 
         queue = []
         logger.debug("Starting collecting list of files/folders to rename:")
         for root, dirs, files in os.walk(src_path):
             if dirs:
                 for d in dirs:
-                    if original_tag in d:
+                    if hashtag_re.search(d):
                         full_path = os.path.join(root, d)
                         logger.debug("  Found directory: {}".format(full_path))
                         queue.append(full_path)
 
             if files:
                 for f in files:
-                    if original_tag in f:
+                    if hashtag_re.search(d):
                         full_path = os.path.join(root, f)
                         logger.debug("  Found file: {}".format(full_path))
                         queue.append(full_path)
@@ -232,7 +230,7 @@ class Taggo:
         logger.debug("Using src-path: {}".format(src_path))
 
         if not os.path.isdir(src_path):
-            raise FolderException("Didnt find src-path: {}".format(src_path))
+            raise exceptions.FolderException("Didnt find src-path: {}".format(src_path))
 
         folder_tags = []
         file_tags = []
@@ -336,7 +334,7 @@ def main(known_args=None, reraise=False):
 
     try:
         getattr(t, args.cmd)()
-    except Error as e:
+    except exceptions.Error as e:
         logger.error(e)
         if reraise:
             raise
