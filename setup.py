@@ -11,18 +11,19 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
+# put package requirements here
 requirements = [
-    # TODO: put package requirements here
 ]
 
+# put setup requirements (distutils extensions, etc.) here
 setup_requirements = [
     'pytest-runner',
-    # TODO(xeor): put setup requirements (distutils extensions, etc.) here
 ]
 
+# put package test requirements here
 test_requirements = [
     'pytest',
-    # TODO: put package test requirements here
+    'pytest-catchlog'
 ]
 
 setup(
