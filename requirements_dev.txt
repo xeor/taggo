@@ -10,3 +10,4 @@ cryptography==2.1.1
 PyYAML==3.12
 pytest==3.2.3
 pytest-runner==2.12.1
+pytest-catchlog==1.2.2

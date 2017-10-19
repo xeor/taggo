@@ -1,5 +1,6 @@
 import re
 import os
+import sys
 import logging
 import argparse
 
@@ -197,14 +198,14 @@ class Taggo:
         for root, dirs, files in os.walk(src_path):
             if dirs:
                 for d in dirs:
-                    if hashtag_re.search(d):
+                    if self.args.original in hashtag_re.findall(d):
                         full_path = os.path.join(root, d)
                         logger.debug("  Found directory: {}".format(full_path))
                         queue.append(full_path)
 
             if files:
                 for f in files:
-                    if hashtag_re.search(d):
+                    if self.args.original in hashtag_re.findall(f):
                         full_path = os.path.join(root, f)
                         logger.debug("  Found file: {}".format(full_path))
                         queue.append(full_path)
@@ -243,14 +244,14 @@ class Taggo:
         folder_tags = sorted(set(folder_tags))
         file_tags = sorted(set(file_tags))
 
-        print("Folder tags:")
+        logger.info("Folder tags:")
         for folder_tag in folder_tags:
-            print("  {}".format(folder_tag))
+            logger.info("  {}".format(folder_tag))
 
-        print()
-        print("File tags:")
+        logger.info("")
+        logger.info("File tags:")
         for file_tag in file_tags:
-            print("  {}".format(file_tag))
+            logger.info("  {}".format(file_tag))
 
 
 def main(known_args=None, reraise=False):
@@ -261,6 +262,11 @@ def main(known_args=None, reraise=False):
         "--debug",
         action="store_true",
         help="Print extra info about what we are doing",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Print no outputs to stdout/stderr",
     )
 
     subparsers = parser.add_subparsers(dest="cmd")
@@ -330,6 +336,8 @@ def main(known_args=None, reraise=False):
         logging.basicConfig(format="%(message)s")
         logger.setLevel(logging.INFO)
 
+    logger.disabled = args.quiet
+
     t = Taggo(args)
 
     try:
@@ -338,6 +346,7 @@ def main(known_args=None, reraise=False):
         logger.error(e)
         if reraise:
             raise
+        sys.exit(2)
 
 if __name__ == "__main__":  # pragma: no cover
     main()  # pragma: no cover
