@@ -144,8 +144,7 @@ def test_rename(caplog):
     assert not os.path.exists("{}/folder/tagged with #a-nested-tag.txt".format(tmp))
     assert os.path.isfile("{}/folder/tagged with #new-nested-tag.txt".format(tmp))
 
-    assert "a #tagged folder" in os.listdir("{}/folder/nesting folder".format(tmp))
-    # assert os.path.isdir("{}/folder/nesting folder/a #tagged folder".format(tmp))
+    assert os.path.isdir("{}/folder/nesting folder/a #tagged folder".format(tmp))
     taggo.main(["rename", tmp, "tagged", "new-tagged"])
     assert not os.path.exists("{}/folder/nesting folder/a #tagged folder".format(tmp))
     assert os.path.isdir("{}/folder/nesting folder/a #new-tagged folder".format(tmp))
