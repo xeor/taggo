@@ -12,7 +12,7 @@ deploy:
     python: 3.6
     repo: xeor/taggo
     tags: true
-install: pip install -U tox-travis coveralls
+install: pip install -U tox-travis coveralls pytest-catchlog
 language: python
 python:
   - 3.6
