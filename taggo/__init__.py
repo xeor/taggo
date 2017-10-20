@@ -77,9 +77,8 @@ class Taggo:
             if not self.args.dry:
                 try:
                     os.symlink(symlink_destination, full_symlink_path)
-                except FileExistsError:
+                except OSError:
                     pass
-
 
     def run(self):
         logger.debug("run()")
@@ -348,6 +347,6 @@ def main(known_args=None, reraise=False):
             raise
         sys.exit(2)
 
+
 if __name__ == "__main__":  # pragma: no cover
     main()  # pragma: no cover
-

@@ -4,4 +4,3 @@ class Error(Exception):
 
 class FolderException(Error):
     pass
-
