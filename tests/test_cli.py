@@ -15,8 +15,8 @@ def test_noargs(capsys):
     assert ex.value.code == 2
 
     out, err = capsys.readouterr()
-    assert "the following arguments are required" in err
-
+    assert "usage: " in err
+    assert "error: " in err
 
 def test_help(capsys):
     with pytest.raises(SystemExit) as ex:
@@ -124,7 +124,7 @@ def test_info(caplog):
 
     assert "  multitag" in caplog.text
     assert "  a-nested-tag" in caplog.text
-    assert "  øl" in caplog.text
+    assert u"  øl" in caplog.text
 
 
 def test_info_quiet(caplog):

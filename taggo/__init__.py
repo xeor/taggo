@@ -182,11 +182,11 @@ class Taggo:
         ))
 
         original_tag = "#{}".format(self.args.original)
-        if not hashtag_re.fullmatch(original_tag):
+        if not utils.fullmatch(hashtag_re, original_tag):
             raise exceptions.Error("Invalid hashtag: '{}'".format(original_tag))
 
         new_tag = "#{}".format(self.args.new)
-        if not hashtag_re.fullmatch(new_tag):
+        if not utils.fullmatch(hashtag_re, new_tag):
             raise exceptions.Error("Invalid hashtag: '{}'".format(new_tag))
 
         if original_tag == new_tag:
