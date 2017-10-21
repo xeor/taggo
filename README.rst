@@ -42,32 +42,8 @@ Any questions, thoughts, bugs are very welcome!
 Requirements
 ------------
 
-* Python 3.6 or newer for now.. Will possible work on earlier versions as well.
+* Python 2.7+ or 3.6+, rest is untested
 
-
-What it does
-------------
-
-Taggo creates symlinks based on hashtags it finds in the file or foldername.
-
-Here are some examples
-
-.. list-table:: Filename examples
-   :widths: 10 40
-   :header-rows: 1
-
-   * - Fil/folder names
-     - Creates
-   * - A random name.jpg
-     -
-   * - dcim1234 #People-Lars #food.jpg
-     - 1 link in a folder People/Lars/... and one in food/
-   * - 2012-09-25 Oslo tour #Earth-Europe-Norway-Oslo/dcim123...
-     - Link to the folder under Earth/Europe/Norway/Oslo/2012-09-25....
-   * - dcim123,#tag1.jpg
-     - Link to the file under tag1/
-   * - dcim321#tag2.jpg
-     - Nothing, a tag needs a space, . or , in front and back of the tag.
 
 FAQ
 ---
