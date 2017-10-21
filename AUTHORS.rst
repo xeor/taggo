@@ -2,8 +2,8 @@
 Credits
 =======
 
-Development Lead
-----------------
+Project owner
+-------------
 
 * Lars Solberg <lars.solberg@gmail.com>
 
