@@ -27,4 +27,8 @@ script:
 
 after_success:
   - coveralls
-  - curl -H "Content-Type: application/json" --data '{"build": true}' -X POST https://registry.hub.docker.com/u/xeor/taggo/trigger/${DOCKER_BUILD_TRIGGER_TOKEN}/
+  - >-
+       curl
+         -H "Content-Type: application/json"
+         --data '{"build": true}'
+         -X POST https://registry.hub.docker.com/u/xeor/taggo/trigger/${DOCKER_BUILD_TRIGGER_TOKEN}/
