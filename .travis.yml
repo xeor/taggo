@@ -12,10 +12,20 @@ deploy:
     python: 3.6
     repo: xeor/taggo
     tags: true
+
+after_deploy:
+  - >-
+       curl \
+         -H "Content-Type: application/json" \
+         --data '{"build": true}' \
+         -X POST https://registry.hub.docker.com/u/xeor/taggo/trigger/${DOCKER_BUILD_TRIGGER_TOKEN}/
+
 install: pip install -U tox-travis coveralls pytest-catchlog
 language: python
+
 python:
   - 3.6
+
 env:
   - TOXENV=py27
   - TOXENV=py36
@@ -27,8 +37,3 @@ script:
 
 after_success:
   - coveralls
-  - >-
-       curl
-         -H "Content-Type: application/json"
-         --data '{"build": true}'
-         -X POST https://registry.hub.docker.com/u/xeor/taggo/trigger/${DOCKER_BUILD_TRIGGER_TOKEN}/
