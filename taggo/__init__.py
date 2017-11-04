@@ -8,7 +8,7 @@ from . import (exceptions, utils)
 
 __author__ = """Lars Solberg"""
 __email__ = 'lars.solberg@gmail.com'
-__version__ = '0.9.1'
+__version__ = '0.10.0'
 
 logger = logging.getLogger("taggo")
 hashtag_re = re.compile(r'\B#([^ \.,]+)\b')
