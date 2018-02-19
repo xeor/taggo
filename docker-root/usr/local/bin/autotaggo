@@ -1,0 +1,9 @@
+#!/bin/sh
+
+num=$1
+shift
+command=$@
+
+(flock -nx 200 ||  exit 2
+  /usr/bin/taggo ${command}
+)200>/var/lock/autotaggo_${num}.lock

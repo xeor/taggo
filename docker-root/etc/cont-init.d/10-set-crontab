@@ -1,0 +1,17 @@
+#!/usr/bin/with-contenv sh
+
+crontabs=''
+i=0
+while true; do
+  # Not sure if this is possible in plain sh without eval..
+  # However, only our counter is dynamic. So not really a big deal.
+  var=$(eval echo \"\${CRON_TAGGO_${i}}\")
+
+  [[ "${var}" ]] || break
+  cron=$(echo "${var}" | awk -F'|' '{print $1}')
+  params=$(echo "${var}" | awk -F'|' '{print $2}')
+  crontabs="${crontabs}\n${cron} /usr/local/bin/autotaggo ${i} ${params}"
+  i=$((${i}+1))
+done
+
+echo -e "${crontabs}" | crontab -

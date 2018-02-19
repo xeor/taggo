@@ -1,0 +1,5 @@
+#!/usr/bin/with-contenv sh
+
+[[ "${CRON_TAGGO_0}" ]] || ( /usr/bin/s6-stopdisable crond && exit 0 )
+
+exec /usr/sbin/crond -f -l 2;
