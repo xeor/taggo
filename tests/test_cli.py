@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import json
 import random
 import shutil
 
@@ -40,6 +41,7 @@ def test_run_dry(caplog):
     assert "making symlink" in caplog.text
     assert "Checking directory" in caplog.text
     assert "to: ../../../tests/test_files/tagged/folders/pictures/2012 #Oslo tour/fishes/file #tag.jpg" in caplog.text
+    assert not os.path.exists('temp/test_run_dry')
 
 
 def test_nonexisting_dst(capsys):
@@ -72,8 +74,50 @@ def test_symlink_creation(capsys):
     ]:
         assert os.path.isfile("temp/test_symlink_creation/{}".format(f))
 
+def test_symlink_creation_advanced(caplog):
+    tmp = "temp/test_symlink_creation_advanced/{}".format(str(random.random()))
+    os.makedirs(tmp)
+    os.symlink("non-existing-file", "{}/should-be-cleaned-up".format(tmp))
 
-def test_via_python_command(capsys):
+    origin_cwd = os.getcwd()
+    with pytest.raises(SystemExit) as ex:
+        taggo.main([
+            "--json-output",
+            "run", "tests/test_files/tagged/", tmp,
+            "--metadata-addon", "stat",
+            "--metadata-addon", "filetype",
+            "--metadata-addon", "exif",
+            "--metadata-addon", "md5",
+            "--metadata-default", "a_key=value",
+            "--filter-mode", "include", "--filter", "a_key__startswith=val",
+            "--filter-query", 'contains(paths.*, `"2012"`) && "file-ext" == `jpg`',
+            "--symlink-name", "{paths[0]}/{md5}.{file-ext}",
+            "--collision-handler", "bail-if-different",
+            "--auto-cleanup"
+        ])
+
+    os.chdir(origin_cwd)  # The with block screw up the cwd
+    assert ex.value.code == 20
+    for f in [
+        "120102 A nice trip/d41d8cd98f00b204e9800998ecf8427e.jpg"
+    ]:
+        assert os.path.islink("{}/{}".format(tmp, f))
+
+    # Should be cleaned up, but arent, since the collision-handler didn't let us finish...
+    assert os.path.islink("{}/should-be-cleaned-up".format(tmp))
+    assert len(os.listdir(tmp)) == 2
+
+    assert len(caplog.records) == 2
+    for log in caplog.records:
+        message = json.loads(log.message)
+        if log.levelname == 'INFO':
+            assert message.get('_type') == 'made-symlink'
+            assert message.get('symlink_destination') == '../../../../tests/test_files/tagged/folders/pictures/pictures_old_tags/2012/120102 A nice trip/i-3 #Christmas, #Bart.jpg'
+        if log.levelname == 'ERROR':
+            assert message.get('_type') == 'collision'
+            assert message.get('symlink_destination') == '../../../../tests/test_files/tagged/folders/pictures/pictures_old_tags/2012/120102 A nice trip/i-3 collision #Bart.jpg'
+
+def test_via_python_command():
     import subprocess
     proc = subprocess.Popen(["python3", "-m", "taggo", "-h"], stdout=subprocess.PIPE)
     assert proc.wait() == 0
@@ -81,11 +125,11 @@ def test_via_python_command(capsys):
 
 
 def test_cleanup_dst_err():
-    with pytest.raises(taggo.exceptions.FolderException, match="Didnt find src directory: .*"):
+    with pytest.raises(taggo.exceptions.FolderException, match="Didnt find directory: .*"):
         taggo.main(["cleanup", "nonexisting"], reraise=True)
 
 
-def test_cleanup(capsys):
+def test_cleanup():
     tmp = "temp/test_cleanup/{}".format(str(random.random()))
     shutil.copytree("tests/test_files/cleanup_test", tmp, symlinks=True)
 

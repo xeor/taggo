@@ -14,7 +14,13 @@ To install taggo, run this command in your terminal:
 
     $ pip install taggo
 
-This is the preferred method to install taggo, as it will always install the most recent stable release. 
+If you also want to download the required packages to run all metadata-addons, install taggo like this.
+
+.. code-block:: console
+
+    $ pip install taggo[all]
+
+This is the preferred method to install taggo, as it will always install the most recent stable release.
 
 If you don't have `pip`_ installed, this `Python installation guide`_ can guide
 you through the process.

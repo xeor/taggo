@@ -15,6 +15,11 @@ with open('HISTORY.rst') as history_file:
 requirements = [
 ]
 
+# Optional packages
+extras = {
+    'all': ['piexif', 'filetype', 'jmespath']
+}
+
 # put setup requirements (distutils extensions, etc.) here
 setup_requirements = [
     'pytest-runner',
@@ -23,7 +28,10 @@ setup_requirements = [
 # put package test requirements here
 test_requirements = [
     'pytest',
-    'pytest-catchlog'
+    'pytest-catchlog',
+    'piexif',
+    'filetype',
+    'jmespath'
 ]
 
 setup(
@@ -37,6 +45,7 @@ setup(
     packages=find_packages(include=['taggo'], exclude=['tests']),
     include_package_data=True,
     install_requires=requirements,
+    extras_require=extras,
     license="MIT license",
     zip_safe=False,
     keywords='taggo',
