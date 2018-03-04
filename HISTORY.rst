@@ -2,6 +2,12 @@
 History
 =======
 
+0.13.0 (2018-03-04)
+-------------------
+
+* Dropping python 2.x support... Some things might end up being problematic to support. Like symlinks for directories in windows.
+  So instead of making a bunch of hacks around functionality. It is now dropped.
+
 0.12.0 (2018-03-03)
 -------------------
 

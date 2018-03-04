@@ -139,7 +139,7 @@ def make_filters(filter_list):
 
         search_value = from_string_to_py(search_value, search_filtername)
 
-        func = getattr(filters, f'{search_filtername}')
+        func = getattr(filters, search_filtername)
 
         # We run filters by group, trying to run them in the correct order.
         # Those filter that doesnt belong to a group should be quick to execute. We put them first.

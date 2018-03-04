@@ -27,7 +27,6 @@ python:
   - 3.6
 
 env:
-  - TOXENV=py27
   - TOXENV=py36
 
 script:

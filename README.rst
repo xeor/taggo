@@ -22,8 +22,8 @@ Tag organizer that uses names of files and folders to create symlinks.
 Tags are defined by using #hashtags in the name. They can also be as many sub levels as you want, like #sub-hash-tag
 
 **note**
-This version should work now, but the "old" version is still tagged at https://github.com/xeor/taggo/tree/0.2.
-The old version worked fine at python 2 (but not 3). It also had config-file instead of parameters. Check out the
+This version is a completey different version than the old (https://github.com/xeor/taggo/tree/0.2).
+The old version works for python 2 (but not 3). It also had config-file instead of parameters. Check out the
 repo if you want it..
 
 * Free software: MIT license
@@ -42,7 +42,7 @@ Any questions, thoughts, bugs are very welcome!
 Requirements
 ------------
 
-* Python 2.7+ or 3.6+, rest is untested
+* 3.6+
 
 
 Docker
