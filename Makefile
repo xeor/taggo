@@ -57,7 +57,7 @@ test-pdb:
 	python3 -m pytest --basetemp=temp --pdb
 
 test-all: ## run tests on every Python version with tox
-	tox
+	python3 -m tox
 
 coverage: ## check code coverage quickly with the default Python
 	python3 -m coverage run --source taggo -m pytest
