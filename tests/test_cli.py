@@ -81,7 +81,6 @@ def test_symlink_creation_advanced(caplog):
     os.makedirs(tmp)
     os.symlink("non-existing-file", "{}/should-be-cleaned-up".format(tmp))
 
-    origin_cwd = os.getcwd()
     with pytest.raises(SystemExit) as ex:
         taggo.main([
             "--json-output",
@@ -97,9 +96,8 @@ def test_symlink_creation_advanced(caplog):
             "--collision-handler", "bail-if-different",
             "--auto-cleanup"
         ])
-
-    os.chdir(origin_cwd)  # The with block screw up the cwd
     assert ex.value.code == 20
+
     for f in [
         "120102 A nice trip/d41d8cd98f00b204e9800998ecf8427e.jpg"
     ]:

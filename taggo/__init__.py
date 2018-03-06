@@ -78,6 +78,12 @@ class Taggo:
     def __del__(self):
         self._reset()
 
+    def exit(self, exit_code):
+        # sys.exit can be catched in a try, except. Make sure we reset the path
+        # if that is done (example in tests)
+        self._reset()
+        sys.exit(exit_code)
+
     def _reset(self):
         # Try to get back to our original directory after we are done.
         # Not normally that important, but usefull in some cases, example for testing.
@@ -168,7 +174,7 @@ class Taggo:
                 try:
                     input()
                 except KeyboardInterrupt:
-                    sys.exit(0)
+                    self.exit(0)
 
             tag, param = tag
 
@@ -281,7 +287,7 @@ class Taggo:
                 )
 
                 if self.args.collision_handler == "bail-if-different":
-                    sys.exit(20)
+                    self.exit(20)
 
                 logger.debug("    Symlink already existing but with another destination.")
                 logger.debug("      old: {}".format(existing_symlink_destination))
