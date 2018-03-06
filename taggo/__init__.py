@@ -41,7 +41,10 @@ hashtag_re = re.compile(r"""
         )?                   # This whole parameter-group is optional
         """, re.X)
 
-hashtags_in = lambda x: [i[0] for i in hashtag_re.findall(x)]
+
+def hashtags_in(string):
+    return [i[0] for i in hashtag_re.findall(string)]
+
 
 # Logging that sends info and debug to stdout, and warning or greater to stderr
 # https://stackoverflow.com/a/16066513/452081
@@ -49,8 +52,10 @@ class InfoFilter(logging.Filter):
     def filter(self, rec):
         return rec.levelno in (logging.DEBUG, logging.INFO)
 
+
 class SkipFile(Exception):
     pass
+
 
 logger = logging.getLogger("taggo")
 
@@ -209,7 +214,8 @@ class Taggo:
             except KeyError as e:
                 self._output(
                     'error',
-                    'Invalid key in name-template ({}) {} while trying to make symlink for {}. Correct it, or use --symlink-name-default. Valid keys are: {}'.format(
+                    'Invalid key in name-template ({}) {} while trying to make symlink for {}.'
+                    'Correct it, or use --symlink-name-default. Valid keys are: {}'.format(
                         symlink_name_template, e, full_path, ', '.join(symlink_name_data.keys())
                     ),
                     'error-in-template',
@@ -509,7 +515,8 @@ def main(known_args=None, reraise=False):
     parser.add_argument(
         "--json-output",
         action="store_true",
-        help="Output in json-format (1 entry per line). This will not work when debug is enabled. Json-output will also contain some additional info",
+        help="Output in json-format (1 entry per line). This will not work when debug is enabled."
+             "Json-output will also contain some additional info",
     )
 
     subparsers = parser.add_subparsers(dest="cmd")
@@ -528,7 +535,8 @@ def main(known_args=None, reraise=False):
     # In case of conflicts, it will get overwritten, we do no check..
     parser_run.add_argument(
         "--symlink-name",
-        help="A template-based name of what you want to call the symlinks themself. See docs for more info. (default: %(default)s)",
+        help="A template-based name of what you want to call the symlinks themself."
+             "See docs for more info. (default: %(default)s)",
         default="{tag[as-folders]}/{rel_folders} - {basename}"
     )
 
@@ -553,7 +561,8 @@ def main(known_args=None, reraise=False):
 
     parser_run.add_argument(
         "--filter-mode",
-        help="Should we include or exclude files matching the filter. Include uses locical AND, and exclude uses logical OR. (default: %(default)s)",
+        help="Should we include or exclude files matching the filter."
+             "Include uses locical AND, and exclude uses logical OR. (default: %(default)s)",
         choices=["include", "exclude"],
         default="include"
     )
@@ -566,14 +575,19 @@ def main(known_args=None, reraise=False):
 
     parser_run.add_argument(
         "--metadata-addon",
-        help="Enable additional keys for the symlink-name template and filtering. Use multiple times to enable several.",
+        help="Enable additional keys for the symlink-name template and filtering."
+             "Use multiple times to enable several.",
         action="append",
         default=[]
     )
 
     parser_run.add_argument(
         "--metadata-default",
-        help="Create default for keys that are not populated.. Example if we don't have exif data on an image, you might want to set the key you depend on to something default. Use multiple times to define several defaults. Use = to separate. Example '--metadata-default keyname=value",
+        help="Create default for keys that are not populated.."
+             "Example if we don't have exif data on an image,"
+             "you might want to set the key you depend on to something default."
+             "Use multiple times to define several defaults. Use = to separate."
+             "Example '--metadata-default keyname=value",
         action="append",
         default=[]
     )

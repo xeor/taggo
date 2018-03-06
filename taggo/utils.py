@@ -22,14 +22,16 @@ def remove_empty_folders(path, remove_root=True):
             if os.path.isdir(fullpath):
                 remove_empty_folders(fullpath)
 
-    # if folder empty, delete it, but not if it's an symlink (happens if it's a link to a folder that is empty.. Don't delete those)
+    # if folder empty, delete it, but not if it's an symlink (happens if it's a link to a folder that is empty..
+    # Don't delete those)
     files = os.listdir(path)
     if len(files) == 0 and remove_root and not os.path.islink(path):
         logger.info("Removing empty folder: {}".format(path))
         os.rmdir(path)
 
 
-# Original from https://stackoverflow.com/questions/30212413/backport-python-3-4s-regular-expression-fullmatch-to-python-2
+# Original from
+# https://stackoverflow.com/questions/30212413/backport-python-3-4s-regular-expression-fullmatch-to-python-2
 def fullmatch(regex, string):
     if hasattr(re, 'fullmatch'):
         return regex.fullmatch(string)
@@ -67,6 +69,7 @@ def get_exif_data(filepath):
         'exif_GPSLatLon': gpslatlon,
     }
 
+
 def get_rel_folders_string(relative_path, is_file):
     if (not relative_path) or (len(relative_path) == 1 and not is_file):
         return 'root'
@@ -75,6 +78,7 @@ def get_rel_folders_string(relative_path, is_file):
         return '_'.join(relative_path)
     else:
         return '_'.join(relative_path[:-1])
+
 
 try:
     import filetype
