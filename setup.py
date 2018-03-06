@@ -12,8 +12,7 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 # put package requirements here
-requirements = [
-]
+requirements = []
 
 # Optional packages
 extras = {
