@@ -20,7 +20,7 @@ from . import (exceptions, utils)
 
 __author__ = """Lars Solberg"""
 __email__ = 'lars.solberg@gmail.com'
-__version__ = '0.13.2'
+__version__ = '0.13.3'
 
 # hashtag_re = re.compile(r'\B#([^ \.,]+)\b')
 
