@@ -75,20 +75,6 @@ class Taggo:
         self.args = args
         logger.debug("Initializing using options: {}".format(args.__dict__))
 
-    def __del__(self):
-        self._reset()
-
-    def exit(self, exit_code):
-        # sys.exit can be catched in a try, except. Make sure we reset the path
-        # if that is done (example in tests)
-        self._reset()
-        sys.exit(exit_code)
-
-    def _reset(self):
-        # Try to get back to our original directory after we are done.
-        # Not normally that important, but usefull in some cases, example for testing.
-        os.chdir(self.origin_cwd)
-
     def _output(self, loglevel, text, _type, **kwargs):
         if self.args.json_output:
             kwargs['_type'] = _type
@@ -174,7 +160,7 @@ class Taggo:
                 try:
                     input()
                 except KeyboardInterrupt:
-                    self.exit(0)
+                    sys.exit(0)
 
             tag, param = tag
 
@@ -287,7 +273,7 @@ class Taggo:
                 )
 
                 if self.args.collision_handler == "bail-if-different":
-                    self.exit(20)
+                    sys.exit(20)
 
                 logger.debug("    Symlink already existing but with another destination.")
                 logger.debug("      old: {}".format(existing_symlink_destination))
@@ -335,12 +321,7 @@ class Taggo:
         self.filters = utils.make_filters(self.args.filter)
         symlink_name_data = {}
 
-        # Change the folder to make it easier for ourself when getting
-        # names of paths to use in link-names.
-        os.chdir(src_path)
-
-        logger.debug('Changing folder to {} to start the search'.format(src_path))
-        for dirpath, dirnames, filenames in os.walk('.'):
+        for dirpath, dirnames, filenames in os.walk(src_path):
             logger.debug("Checking directory: {}".format(dirpath))
 
             relative_path = dirpath.split(os.path.sep)
@@ -386,7 +367,6 @@ class Taggo:
                     continue
 
         if self.args.auto_cleanup:
-            self._reset()
             self.cleanup()
 
     def cleanup(self):
