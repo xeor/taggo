@@ -104,3 +104,8 @@ Before you submit a pull request, check that it meets these guidelines:
 3. The pull request should work for Python 3.6, and up. Check
    https://travis-ci.org/xeor/taggo/pull_requests
    and make sure that the tests pass for all supported Python versions.
+
+Debug travis
+------------
+
+Start a custom build (trigger build) and input something like `script: DEBUG=true pytest -k test_symlink_creation`

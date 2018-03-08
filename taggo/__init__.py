@@ -71,8 +71,9 @@ logger.addHandler(h2)
 
 class Taggo:
     def __init__(self, args):
-        self.origin_cwd = os.getcwd()
         self.args = args
+        logger.debug("Using taggo version: {}".format(__version__))
+        logger.debug("Our working directory is: {}".format(os.getcwd()))
         logger.debug("Initializing using options: {}".format(args.__dict__))
 
     def _output(self, loglevel, text, _type, **kwargs):
