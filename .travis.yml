@@ -20,7 +20,7 @@ after_deploy:
          --data '{"build": true}' \
          -X POST https://registry.hub.docker.com/u/xeor/taggo/trigger/${DOCKER_BUILD_TRIGGER_TOKEN}/
 
-install: pip install -U tox-travis coveralls
+install: pip install -U tox-travis coveralls pytest-catchlog
 
 language: python
 

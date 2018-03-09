@@ -27,6 +27,7 @@ setup_requirements = [
 # put package test requirements here
 test_requirements = [
     'pytest',
+    'pytest-catchlog',
     'piexif',
     'filetype',
     'jmespath'
