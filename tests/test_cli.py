@@ -4,7 +4,6 @@
 import os
 import re
 import json
-import random
 import shutil
 import textwrap
 
@@ -25,6 +24,7 @@ There are a bunch of test-files under tests/test_files, here are some higlights.
 """
 
 test_files = "tests/test_files/"
+
 
 def test_noargs(capsys):
     with pytest.raises(SystemExit) as ex:
