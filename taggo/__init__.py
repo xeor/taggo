@@ -203,6 +203,11 @@ class Taggo:
             if self.args.filter_query:
                 if not jmespath.search(self.args.filter_query, symlink_name_data):
                     raise SkipFile
+                # import ipdb; ipdb.set_trace()
+                # logger.debug('NOT skipping jmespath search')
+                # logger.debug(self.args.filter_query)
+                # logger.debug(symlink_name_data)
+                # logger.debug('')
 
             try:
                 symlink_name = symlink_name_template.format(**symlink_name_data).lstrip('/')

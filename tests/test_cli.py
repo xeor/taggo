@@ -106,6 +106,36 @@ def test_symlink_creation_1(tmpdir):
 
 
 def test_symlink_creation_2(caplog, tmpdir):
+    # This should end up matching only one file..
+    taggo.main([
+        "--json-output",
+        "run", test_files, str(tmpdir),
+        "--metadata-addon", "stat",
+        "--metadata-addon", "filetype",
+        "--metadata-addon", "exif",
+        "--metadata-addon", "md5",
+        "--metadata-default", "a_key=value",
+        "--filter-mode", "include", "--filter", "a_key__startswith=val",
+        "--filter-query", 'contains(paths.*, `"files_flat"`) && "file-ext" == `txt` && "tag-param".original == `"b"`',
+        "--symlink-name", "{paths[0]}/{md5}.{file-ext}",
+        "--collision-handler", "bail-if-different"
+    ])
+
+    assert len(caplog.records) == 1
+
+    # There are a race-condition when checking for files like this.. Something else must happen before we check it
+    assert os.path.islink(f"{tmpdir}/files_flat/0bee89b07a248e27c83fc3d5951213c1.txt")
+
+    for log in caplog.records:
+        message = json.loads(log.message)
+        if log.levelname == 'INFO':
+            assert message.get('_type') == 'made-symlink'
+            assert message.get('symlink_destination').endswith('files_flat/#tag1 #tag1-a-b(b).txt')
+        if log.levelname == 'ERROR':
+            assert False
+
+
+def test_symlink_creation_3(caplog, tmpdir):
     os.symlink("non-existing-file", f"{tmpdir}/should-be-removed-but-arent")
 
     with pytest.raises(SystemExit) as ex:
@@ -118,17 +148,17 @@ def test_symlink_creation_2(caplog, tmpdir):
             "--metadata-addon", "md5",
             "--metadata-default", "a_key=value",
             "--filter-mode", "include", "--filter", "a_key__startswith=val",
-            "--filter-query", 'contains(paths.*, `"files_flat"`) && "file-ext" == `txt`',
+
+            "--filter-query",
+            'contains(paths.*, `files_flat`) && "file-ext" == `txt` && md5 != `0bee89b07a248e27c83fc3d5951213c1`',
+
             "--symlink-name", "{paths[0]}/{md5}.{file-ext}",
             "--collision-handler", "bail-if-different",
             "--auto-cleanup"
         ])
     assert ex.value.code == 20
 
-    for filepath in [
-        "files_flat/d41d8cd98f00b204e9800998ecf8427e.txt"
-    ]:
-        assert os.path.islink(f"{tmpdir}/{filepath}")
+    assert os.path.islink(f"{tmpdir}/files_flat/d41d8cd98f00b204e9800998ecf8427e.txt")
 
     # Should be cleaned up, but arent, since the collision-handler didn't let us finish...
     assert os.path.islink(f"{tmpdir}/should-be-removed-but-arent")
@@ -139,10 +169,12 @@ def test_symlink_creation_2(caplog, tmpdir):
         message = json.loads(log.message)
         if log.levelname == 'INFO':
             assert message.get('_type') == 'made-symlink'
-            assert message.get('symlink_destination').endswith('files_flat/#tag1 #tag1-a-b(c).txt')
+            assert message.get('symlink_destination').endswith('.txt')
+            assert 'd41d8cd98f00b204e9800998ecf8427e' in message.get('symlink_path')
         if log.levelname == 'ERROR':
             assert message.get('_type') == 'collision'
             assert message.get('symlink_destination').endswith('.txt')
+            assert 'd41d8cd98f00b204e9800998ecf8427e' in message.get('symlink_path')
 
 
 def test_via_python_command():
