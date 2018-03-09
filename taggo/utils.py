@@ -57,15 +57,15 @@ def get_exif_data(filepath):
     gpslatlon = None
 
     return {
-        'exif_ImageLength': exifdata['0th'][piexif.ImageIFD.ImageLength],
-        'exif_ImageWidth': exifdata['0th'][piexif.ImageIFD.ImageWidth],
-        'exif_Make': exifdata['0th'][piexif.ImageIFD.Make].decode('utf-8'),
-        'exif_Model': exifdata['0th'][piexif.ImageIFD.Model].decode('utf-8'),
-        'exif_Orientation': exifdata['0th'][piexif.ImageIFD.Orientation],
+        'exif_ImageLength': exifdata['0th'].get(piexif.ImageIFD.ImageLength, b''),
+        'exif_ImageWidth': exifdata['0th'].get(piexif.ImageIFD.ImageWidth, b''),
+        'exif_Make': exifdata['0th'].get(piexif.ImageIFD.Make, b'').decode('utf-8'),
+        'exif_Model': exifdata['0th'].get(piexif.ImageIFD.Model, b'').decode('utf-8'),
+        'exif_Orientation': exifdata['0th'].get(piexif.ImageIFD.Orientation, b''),
 
-        'exif_Flash': exifdata['Exif'][piexif.ExifIFD.Flash],
+        'exif_Flash': exifdata['Exif'].get(piexif.ExifIFD.Flash, b''),
 
-        'exif_GPSAltitudeRef': exifdata['GPS'][piexif.GPSIFD.GPSAltitudeRef],
+        'exif_GPSAltitudeRef': exifdata['GPS'].get(piexif.GPSIFD.GPSAltitudeRef, b''),
         'exif_GPSLatLon': gpslatlon,
     }
 

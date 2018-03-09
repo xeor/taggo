@@ -22,7 +22,9 @@ __author__ = """Lars Solberg"""
 __email__ = 'lars.solberg@gmail.com'
 __version__ = '0.13.9'
 
-# hashtag_re = re.compile(r'\B#([^ \.,]+)\b')
+if not sys.version_info[0] >= 3 and sys.version_info[1] >= 6:
+    print('You need at least python 3.6')
+    sys.exit(1)
 
 # Hashtag with optional param matcher
 #  hashtag_re.findall('#test not#me #abc(test=123,la=la) #aaa(111) #aaa(222) lala')
