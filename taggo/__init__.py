@@ -20,7 +20,7 @@ from . import (exceptions, utils)
 
 __author__ = """Lars Solberg"""
 __email__ = 'lars.solberg@gmail.com'
-__version__ = '0.13.10'
+__version__ = '0.14.0'
 
 if not sys.version_info[0] >= 3 and sys.version_info[1] >= 6:
     print('You need at least python 3.6')
