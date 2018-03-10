@@ -116,7 +116,7 @@ def test_symlink_creation_2(caplog, tmpdir):
         "--metadata-addon", "md5",
         "--metadata-default", "a_key=value",
         "--filter-mode", "include", "--filter", "a_key__startswith=val",
-        "--filter-query", 'contains(paths.*, `"files_flat"`) && "file-ext" == `txt` && "tag-param".original == `"b"`',
+        "--filter-query", 'contains(paths.*, `"files_flat"`) && "file-ext" == `txt` && "tag-param".original == `b`',
         "--symlink-name", "{paths[0]}/{md5}.{file-ext}",
         "--collision-handler", "bail-if-different"
     ])

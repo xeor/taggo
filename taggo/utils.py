@@ -79,8 +79,12 @@ def get_rel_folders_string(relative_path, is_file):
     else:
         return '_'.join(relative_path[:-1])
 
-import filetype
-filetype_matchers = [i for i in dir(filetype) if i.endswith('_matchers')]
+
+try:
+    import filetype
+    filetype_matchers = [i for i in dir(filetype) if i.endswith('_matchers')]
+except ImportError:
+    pass
 
 
 def get_filetype_data_group(filetype_obj):
