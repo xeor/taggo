@@ -16,7 +16,7 @@ from . import (exceptions, utils)
 
 __author__ = """Lars Solberg"""
 __email__ = 'lars.solberg@gmail.com'
-__version__ = '0.14.0'
+__version__ = '0.14.1'
 
 if sys.version_info[0:2] < (3, 6):
     raise Exception('You need at least python 3.6')
