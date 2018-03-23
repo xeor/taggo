@@ -45,20 +45,18 @@ def test_help(capsys):
     assert "show this help message and exit" in out
 
 
-def test_run_non_existing(caplog):
+def test_run_non_existing():
     with pytest.raises(SystemExit) as ex:
         taggo.main(["run", "non-existing", "temp/test_run_non_existing"])
     assert ex.value.code == 2
-    assert "Didnt find src-path" in caplog.text
 
 
-def test_run_dry(caplog, tmpdir):
-    taggo.main(["--debug", "run", "--dry", test_files, str(tmpdir)])
-    assert "making tag-directory" in caplog.text
-    assert "making symlink" in caplog.text
-    assert "Checking directory" in caplog.text
-    assert re.search('to: .*/tests/test_files/files_flat/.*\.txt', caplog.text)
-    assert not os.path.exists(f'{tmpdir}/tag1')
+def test_run_dry(tmpdir):
+    taggo.run(test_files, str(tmpdir), dry=True, nametemplate='{path.basename}')
+    content = list(os.walk(tmpdir))
+    assert len(content) == 1
+    assert content[0][1] == []
+    assert content[0][2] == []
 
 
 def test_nonexisting_dst(tmpdir):
@@ -67,21 +65,31 @@ def test_nonexisting_dst(tmpdir):
     assert os.path.isdir(f'{tmppath}/tag1')
 
 
-def test_existing_dst(caplog, tmpdir):
-    taggo.main(["--debug", "run", test_files, str(tmpdir)])
-    assert "dst path exists and is a folder" in caplog.text
+def test_misc1(tmpdir):
+    taggo.run(
+        test_files, str(tmpdir),
+        nametemplate='{tag.as-folders}/{path.md5}.{path.file-ext}',
+        metadata={'md5': {}}
+    )
+    assert os.path.isfile(f'{tmpdir}/zip/f0a62d6347d930af50b4a0bbd948c401.zip')
+    assert os.path.isfile(f'{tmpdir}/human/47ef693cfb45f0f9dc6f590a0f96d49b.jpg')
+    assert os.path.isfile(f'{tmpdir}/ѤѥѦѧѨ/d41d8cd98f00b204e9800998ecf8427e.txt')
+    assert os.readlink(
+        f'{tmpdir}/ѤѥѦѧѨ/d41d8cd98f00b204e9800998ecf8427e.txt'
+    ).endswith('tests/test_files/files_flat/ƂƃƄƅƆƇƈ #ѤѥѦѧѨ ƉƊƋƌƍƎƏƐƑ.txt')
 
 
 def test_existing_file_dst(tmpdir):
     tmppath = f"{tmpdir}/existing-file"
     with open(tmppath, "w") as fp:
         fp.write("")
-    with pytest.raises(taggo.exceptions.FolderException, message="dst exist but is not a folder. Cant continue"):
-        taggo.main(["--debug", "run", test_files, tmppath], reraise=True)
+    with pytest.raises(SystemExit) as ex:
+        taggo.main(["--debug", "run", test_files, tmppath])
+    assert ex.value.code == 5
 
 
 def test_symlink_creation_1(tmpdir):
-    taggo.main(["run", test_files, str(tmpdir), "--symlink-name", "{tag[as-folders]}/{basename}"])
+    taggo.main(["run", test_files, str(tmpdir), "--nametemplate", "{tag.as-folders}/{path.basename}"])
 
     for filepath in [
         "tarball/#tarball.tar",
@@ -93,88 +101,30 @@ def test_symlink_creation_1(tmpdir):
         #tag3
 
         .txt"""),
+         textwrap.dedent("""\
+         tag3/#tag1 #tag2-a-b(c)
 
-        # FIXME, this should pass
-        #         textwrap.dedent("""\
-        #         tag3/#tag1 #tag2-a-b(c)
-        #
-        #         #tag3
-        #
-        #         .txt""")
+         #tag3
+
+         .txt""")
     ]:
         assert os.path.isfile(f"{tmpdir}/{filepath}")
 
 
-def test_symlink_creation_2(caplog, tmpdir):
+def test_symlink_creation_2(tmpdir):
     # This should end up matching only one file..
     taggo.main([
         "--json-output",
         "run", test_files, str(tmpdir),
-        "--metadata-addon", "stat",
-        "--metadata-addon", "filetype",
-        "--metadata-addon", "exif",
-        "--metadata-addon", "md5",
-        "--metadata-default", "a_key=value",
-        "--filter-mode", "include", "--filter", "a_key__startswith=val",
-        "--filter-query", 'contains(paths.*, `"files_flat"`) && "file-ext" == `txt` && "tag-param".original == `b`',
-        "--symlink-name", "{paths[0]}/{md5}.{file-ext}",
-        "--collision-handler", "bail-if-different"
+        "--metadata", "stat",
+        "--metadata", "filetype",
+        "--metadata", "exif",
+        "--metadata", "md5",
+        "--filter", 'contains(path.hierarcy, `files_flat`) && path."file-ext" == `txt` && tag.param[0] == `b`',
+        "--nametemplate", "{tag.as-folders}/{path.md5}.{path.file-ext}"
     ])
 
-    assert len(caplog.records) == 1
-
-    # There are a race-condition when checking for files like this.. Something else must happen before we check it
-    assert os.path.islink(f"{tmpdir}/files_flat/0bee89b07a248e27c83fc3d5951213c1.txt")
-
-    for log in caplog.records:
-        message = json.loads(log.message)
-        if log.levelname == 'INFO':
-            assert message.get('_type') == 'made-symlink'
-            assert message.get('symlink_destination').endswith('files_flat/#tag1 #tag1-a-b(b).txt')
-        if log.levelname == 'ERROR':
-            assert False
-
-
-def test_symlink_creation_3(caplog, tmpdir):
-    os.symlink("non-existing-file", f"{tmpdir}/should-be-removed-but-arent")
-
-    with pytest.raises(SystemExit) as ex:
-        taggo.main([
-            "--json-output",
-            "run", test_files, str(tmpdir),
-            "--metadata-addon", "stat",
-            "--metadata-addon", "filetype",
-            "--metadata-addon", "exif",
-            "--metadata-addon", "md5",
-            "--metadata-default", "a_key=value",
-            "--filter-mode", "include", "--filter", "a_key__startswith=val",
-
-            "--filter-query",
-            'contains(paths.*, `files_flat`) && "file-ext" == `txt` && md5 != `0bee89b07a248e27c83fc3d5951213c1`',
-
-            "--symlink-name", "{paths[0]}/{md5}.{file-ext}",
-            "--collision-handler", "bail-if-different",
-            "--auto-cleanup"
-        ])
-    assert ex.value.code == 20
-
-    assert os.path.islink(f"{tmpdir}/files_flat/d41d8cd98f00b204e9800998ecf8427e.txt")
-
-    # Should be cleaned up, but arent, since the collision-handler didn't let us finish...
-    assert os.path.islink(f"{tmpdir}/should-be-removed-but-arent")
-    assert len(os.listdir(str(tmpdir))) == 2
-
-    assert len(caplog.records) == 2
-    for log in caplog.records:
-        message = json.loads(log.message)
-        if log.levelname == 'INFO':
-            assert message.get('_type') == 'made-symlink'
-            assert message.get('symlink_destination').endswith('.txt')
-            assert 'd41d8cd98f00b204e9800998ecf8427e' in message.get('symlink_path')
-        if log.levelname == 'ERROR':
-            assert message.get('_type') == 'collision'
-            assert message.get('symlink_destination').endswith('.txt')
-            assert 'd41d8cd98f00b204e9800998ecf8427e' in message.get('symlink_path')
+    assert os.path.islink(f"{tmpdir}/tag1/a/b/0bee89b07a248e27c83fc3d5951213c1.txt")
 
 
 def test_via_python_command():
@@ -182,11 +132,6 @@ def test_via_python_command():
     proc = subprocess.Popen(["python3", "-m", "taggo", "-h"], stdout=subprocess.PIPE)
     assert proc.wait() == 0
     assert b"show this help message and exit" in proc.stdout.read()
-
-
-def test_cleanup_dst_err():
-    with pytest.raises(taggo.exceptions.FolderException, match="Didnt find directory: .*"):
-        taggo.main(["cleanup", "nonexisting"], reraise=True)
 
 
 def test_cleanup(tmpdir):
@@ -220,24 +165,6 @@ def test_cleanup(tmpdir):
         "existing-symlink3"
     ]:
         assert os.path.islink(f"{tmp}/a folder/{filepath}")
-
-
-def test_info(caplog):
-    taggo.main(["info", test_files])
-
-    for record in caplog.records:
-        assert record.levelname == 'INFO'
-
-    assert "  tag1-a-b-c" in caplog.text
-    assert "  ѤѥѦѧѨ" in caplog.text
-
-
-def test_info_quiet_non_existing(caplog):
-    with pytest.raises(SystemExit) as ex:
-        taggo.main(["--quiet", "info", "non-existing"])
-    assert ex.value.code == 2
-
-    assert caplog.text == ""
 
 
 def test_rename(caplog, tmpdir):

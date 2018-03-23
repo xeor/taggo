@@ -41,35 +41,6 @@ def fullmatch(regex, string):
         return m
 
 
-def get_exif_data(filepath):
-    import piexif
-
-    try:
-        exifdata = piexif.load(filepath)
-    except piexif.InvalidImageDataError:
-        return {}
-
-    # How to present?
-    # exifdata['GPS'][piexif.GPSIFD.GPSLatitudeRef],  # N
-    # exifdata['GPS'][piexif.GPSIFD.GPSLatitude],     # ((59, 1), (50, 1), (1111, 100))
-    # exifdata['GPS'][piexif.GPSIFD.GPSLongitudeRef], # E
-    # exifdata['GPS'][piexif.GPSIFD.GPSLongitude],    # (10, 1), (50, 1), (3000, 100))
-    gpslatlon = None
-
-    return {
-        'exif_ImageLength': exifdata['0th'].get(piexif.ImageIFD.ImageLength, b''),
-        'exif_ImageWidth': exifdata['0th'].get(piexif.ImageIFD.ImageWidth, b''),
-        'exif_Make': exifdata['0th'].get(piexif.ImageIFD.Make, b'').decode('utf-8'),
-        'exif_Model': exifdata['0th'].get(piexif.ImageIFD.Model, b'').decode('utf-8'),
-        'exif_Orientation': exifdata['0th'].get(piexif.ImageIFD.Orientation, b''),
-
-        'exif_Flash': exifdata['Exif'].get(piexif.ExifIFD.Flash, b''),
-
-        'exif_GPSAltitudeRef': exifdata['GPS'].get(piexif.GPSIFD.GPSAltitudeRef, b''),
-        'exif_GPSLatLon': gpslatlon,
-    }
-
-
 def get_rel_folders_string(relative_path, is_file):
     if (not relative_path) or (len(relative_path) == 1 and not is_file):
         return 'root'
@@ -78,34 +49,6 @@ def get_rel_folders_string(relative_path, is_file):
         return '_'.join(relative_path)
     else:
         return '_'.join(relative_path[:-1])
-
-
-try:
-    import filetype
-    filetype_matchers = [i for i in dir(filetype) if i.endswith('_matchers')]
-except ImportError:
-    pass
-
-
-def get_filetype_data_group(filetype_obj):
-    for fm in filetype_matchers:
-        if filetype_obj in getattr(filetype, fm):
-            return fm.split('_')[0]
-    return ''
-
-
-def get_filetype_data(filepath):
-    filetype_obj = filetype.guess(filepath)
-    if not filetype_obj:
-        return {}
-
-    return {
-        'filetype_extension': filetype_obj.extension,
-        'filetype_mime': filetype_obj.mime,
-        'filetype_group': get_filetype_data_group(filetype_obj),
-        'filetype_mime_0': filetype_obj.mime.split('/')[0],
-        'filetype_mime_1': filetype_obj.mime.split('/')[1]
-    }
 
 
 def from_string_to_py(value, filtername):

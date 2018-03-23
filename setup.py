@@ -12,11 +12,14 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 # put package requirements here
-requirements = []
+requirements = [
+    'jmespath',
+    'python-box'
+]
 
 # Optional packages
 extras = {
-    'all': ['piexif', 'filetype', 'jmespath']
+    'all': ['piexif', 'filetype']
 }
 
 # put setup requirements (distutils extensions, etc.) here

@@ -1,20 +1,16 @@
-from __future__ import print_function
-
 import re
 import os
 import sys
 import json
 import logging
-import datetime
 import textwrap
 import argparse
+import importlib
 
 from collections import defaultdict
 
-try:
-    import jmespath
-except ImportError:
-    pass
+import jmespath
+from box import Box
 
 from . import (exceptions, utils)
 
@@ -22,9 +18,18 @@ __author__ = """Lars Solberg"""
 __email__ = 'lars.solberg@gmail.com'
 __version__ = '0.14.0'
 
-if not sys.version_info[0] >= 3 and sys.version_info[1] >= 6:
-    print('You need at least python 3.6')
-    sys.exit(1)
+if sys.version_info[0:2] < (3, 6):
+    raise Exception('You need at least python 3.6')
+
+DEFAULT_NAMETEMPLATE = "{tag[as-folders]}/{path[hierarcy_str]} - {path[basename]}"
+TAG_CHARACTER = "#"
+TAG_PATH_SEPARATOR = "-"
+
+# If we are at the top directory, what should the name be?
+TAG_PATH_HIERARCY_TOP_NAME = "root"
+
+# What character should we replace folder separator with to get path[hierarcy_str]
+TAG_PATH_HIERARCY_SEPARATOR = "_"
 
 # Hashtag with optional param matcher
 #  hashtag_re.findall('#test not#me #abc(test=123,la=la) #aaa(111) #aaa(222) lala')
@@ -33,7 +38,7 @@ hashtag_re = re.compile(r"""
         \B                   # Else we might match on eg no#tag
         \#                   # Tag-character.. The hashtag
         (                    # Main tag-name group
-            [^ \.,\(\)]+     # Tag themself can contain anything except space, "." and "," (end of sentences problem)
+            [^\.,\(\)\s]+    # Tags can contain anything except whitespaces, "." and "," (end of sentences problem)
                              # and ()-brackets (they are used in params)
         )
         (?:                  # Parameter-group, non-capturing wrapping
@@ -48,18 +53,43 @@ def hashtags_in(string):
     return [i[0] for i in hashtag_re.findall(string)]
 
 
-# Logging that sends info and debug to stdout, and warning or greater to stderr
+# Make a list of (num, name) of available metadata plugins.
+# We shoulnt load/import them just yet..
+dir_path = os.path.dirname(os.path.realpath(__file__))
+metadata_files_re = re.compile(r'^([0-9]{2})_([0-9a-zA-Z_]+)\.py$')
+available_metadata_addons = []
+for i in os.listdir(os.path.join(dir_path, 'metadata')):
+    if metadata_files_re.match(i):
+        available_metadata_addons.append(
+            metadata_files_re.findall(i)[0]
+        )
+available_metadata_addons = sorted(available_metadata_addons, key=lambda x: int(x[0]))
+
+setattr(logging, 'VERBOSE', 15)
+
+
+# Logging that sends info, verbose and debug to stdout, and warning or greater to stderr
 # https://stackoverflow.com/a/16066513/452081
 class InfoFilter(logging.Filter):
     def filter(self, rec):
-        return rec.levelno in (logging.DEBUG, logging.INFO)
+        return rec.levelno in (logging.DEBUG, logging.VERBOSE, logging.INFO)
 
 
 class SkipFile(Exception):
     pass
 
 
-logger = logging.getLogger("taggo")
+class Logger(logging.Logger):
+    def __init__(self, name, level=logging.NOTSET):
+        super().__init__(name, level)
+
+        logging.addLevelName(logging.VERBOSE, "VERBOSE")
+
+    def verbose(self, msg, *args, **kwargs):
+        if self.isEnabledFor(logging.VERBOSE):
+            self._log(logging.VERBOSE, msg, args, **kwargs)
+
+logger = Logger("taggo")
 
 h1 = logging.StreamHandler(sys.stdout)
 h1.setLevel(logging.DEBUG)
@@ -70,437 +100,562 @@ h2 = logging.StreamHandler()
 h2.setLevel(logging.WARNING)
 logger.addHandler(h2)
 
+# Default
+logger.setLevel(logging.INFO)
 
-class Taggo:
-    def __init__(self, args):
-        self.args = args
-        logger.debug("Using taggo version: {}".format(__version__))
-        logger.debug("Our working directory is: {}".format(os.getcwd()))
-        logger.debug("Initializing using options: {}".format(args.__dict__))
+_json_output = False
+_dry = False
+_metadata = None
+_filters = None
 
-    def _output(self, loglevel, text, _type, **kwargs):
-        if self.args.json_output:
-            kwargs['_type'] = _type
-            getattr(logger, loglevel)(json.dumps(kwargs))
+
+def configure(*, output=None, dry=None, metadata=None, filters=None):
+    if output is not None:
+        global _json_output
+        _json_output = False
+        logger.disabled = False
+
+        if output == "DEBUG" or os.environ.get("DEBUG"):
+            logger.setLevel(logging.DEBUG)
+        elif output == "VERBOSE" or os.environ.get("VERBOSE"):
+            logger.setLevel(logging.VERBOSE)
+        elif output == "INFO":
+            logger.setLevel(logging.INFO)
+        elif output == "JSON":
+            _json_output = True
+        elif output == "QUIET":
+            logger.disabled = True
         else:
-            if text:
-                getattr(logger, loglevel)(text)
+            raise Exception('Invalid output option')
 
-    def _handle_file_metadata(self, full_path):
-        data = {}
-        data['file-ext'] = '{}'.format(full_path.split('.')[-1])
+    if dry is not None:
+        global _dry
+        _dry = dry
 
-        if 'stat' in self.args.metadata_addon:
-            stat = os.stat(full_path)
-            for k in dir(stat):
-                if not k.startswith('st_'):
-                    continue
-                value = getattr(stat, k)
-                data[k] = value
-                if k in ['st_atime', 'st_ctime', 'st_mtime']:
-                    timestamp = datetime.datetime.fromtimestamp(value)
-                    data['{}_iso'.format(k)] = timestamp.isoformat()
-                    data['{}_year'.format(k)] = timestamp.year
-                    data['{}_month'.format(k)] = timestamp.month
-                    data['{}_day'.format(k)] = timestamp.day
-            self._check_filter('stat', data)
+    if metadata:
+        global _metadata
+        _metadata = metadata
 
-        if 'filetype' in self.args.metadata_addon:
-            data.update(utils.get_filetype_data(full_path))
-            self._check_filter('filetype', data)
+    if filters:
+        global _filters
+        _filters = filters
 
-        if 'exif' in self.args.metadata_addon:
-            data.update(utils.get_exif_data(full_path))
-            self._check_filter('exif', data)
 
-        if 'md5' in self.args.metadata_addon:
-            import hashlib
-            data['md5'] = hashlib.md5(open(full_path, 'rb').read()).hexdigest()
-            self._check_filter('md5', data)
+def log(text, loglevel='info', category='general', data=None):
+    if _json_output:
+        data = data or {}
 
-        return data
+        # Be smart about if we run from terminal or not..
+        # Maybe this can be streamed to the runner somehow if run from a script
+        data['_category'] = category
+        data['_loglevel'] = loglevel
+        data['_text'] = text
+        getattr(logger, loglevel)(json.dumps(data))
+    else:
+        getattr(logger, loglevel)(text)
 
-    def _check_filter(self, group, data):
-        for f in self.filters[group]:
-            symlink_data = data.get(f['key'])
 
-            if not symlink_data:
-                # No way for us to guess, data is missing.. Ie. "--filter non_existing=abc"
-                continue
+def _handle_paths(symlink_basepath, sourcepath):
+    symlink_basepath = os.path.abspath(symlink_basepath)
+    sourcepath = os.path.abspath(sourcepath)
+    log(f"Using symlink_basepath: {symlink_basepath}", loglevel='verbose')
+    log(f"Using sourcepath: {sourcepath}", loglevel='verbose')
 
-            filter_result = f['func'](
-                symlink_data, f['value']
-            )
+    if not os.path.exists(sourcepath):
+        raise exceptions.NotFoundException(f"Unable to find sourcepath: {sourcepath}")
 
-            if self.args.filter_mode == 'include' and filter_result is False:
-                raise SkipFile
+    return symlink_basepath, sourcepath
 
-            if self.args.filter_mode == 'exclude' and filter_result is True:
-                raise SkipFile
 
-    def _make_symlinks(self, basename, symlink_name_data, dirpath, dst_path, is_file=True):
-        tags = set(hashtag_re.findall(basename))
-        logger.debug("  {}({}) have tags({})".format(
-            'file' if is_file else 'folder',
-            basename,
-            tags
-        ))
+def _check_filter(group, metadata_store):
+    if not _filters:
+        return None
 
-        symlink_name_data = symlink_name_data.copy()
-        symlink_name_data['basename'] = basename
+    for f in _filters.get(group, []):
+        if not jmespath.search(f, metadata_store.data):
+            raise SkipFile
 
-        self._check_filter('pre', symlink_name_data)
 
-        # Filename is only set if we are making a symlink from a file
-        if is_file:
-            full_path = os.path.join(dirpath, basename)
-            symlink_name_data.update(self._handle_file_metadata(full_path))
-        else:
-            full_path = dirpath
+def _path_variants(dirpath):
+    hierarcy = dirpath.split(os.path.sep)
+    hierarcy.remove('')  # Remove the "." entry
 
-        for tag in tags:
-            if self.args.prompt_each:
-                try:
-                    input()
-                except KeyboardInterrupt:
-                    sys.exit(0)
+    current_folder = hierarcy[-1]
 
-            tag, param = tag
+    return {
+        'current_folder': current_folder,
+        'hierarcy': hierarcy,
+        'hierarcy_rev': hierarcy[::-1]
+    }
 
-            symlink_name_data['tag'] = {'original': tag}
-            symlink_name_data['tag-param'] = {'original': param}
 
-            # We replaces - with folder-separator so we can
-            # use eg #tag-tag2 as a way of making tags in tags..
-            # Inside nested folders..
-            tag = tag.replace('-', os.path.sep)
-            symlink_name_data['tag']['as-folders'] = tag
+def _path_hierarcy_string(path_hierarcy, is_file, separator=TAG_PATH_HIERARCY_SEPARATOR):
+    # Convert a path hierarcy (list of paths) to a string that can be used in templates.
+    # We can't do this before we know if it's a file or not..
 
-            # Make name from our template, also removing any / in the beginning, since
-            # it will make os.path.join confused.
-            if self.args.symlink_name_file and self.args.symlink_name_folder:
-                if is_file:
-                    symlink_name_template = self.args.symlink_name_file
-                else:
-                    symlink_name_template = self.args.symlink_name_folder
-            else:
-                symlink_name_template = self.args.symlink_name
+    if (not path_hierarcy) or (len(path_hierarcy) == 1 and not is_file):
+        return TAG_PATH_HIERARCY_TOP_NAME
 
-            for entry in self.args.metadata_default:
-                entry_split = entry.split('=')
-                if not len(entry_split) >= 2:
-                    self._output(
-                        'error', 'Invalid symlink-name-default {}. Ignoring..'.format(entry),
-                        'invalid-symlink-name-default',
-                        entry=entry
-                    )
-                    continue
-                key = entry_split[0]
-                val = '='.join(entry_split[1:])
-                if key not in symlink_name_data:
-                    symlink_name_data[key] = val
+    if is_file:
+        return separator.join(path_hierarcy)
+    else:
+        return separator.join(path_hierarcy[:-1])
 
-            if self.args.filter_query:
-                if not jmespath.search(self.args.filter_query, symlink_name_data):
-                    raise SkipFile
-                # import ipdb; ipdb.set_trace()
-                # logger.debug('NOT skipping jmespath search')
-                # logger.debug(self.args.filter_query)
-                # logger.debug(symlink_name_data)
-                # logger.debug('')
 
+def find_tags(name):
+    tagdata = {}
+    for tag in set(hashtag_re.findall(name)):
+        tagname, tagparams = tag
+        tagdata[tagname] = tagparams.split(',')
+    return tagdata
+
+
+def _tag_variants(tagset):
+    tag, param = tagset
+
+    return {
+        'name': tag,
+        'param': param,
+
+        # We replaces - with folder-separator so we can
+        # use eg #tag-tag2 as a way of making tags in tags..
+        # Inside nested folders..
+        'as-folders': tag.replace(TAG_PATH_SEPARATOR, os.path.sep)
+    }
+
+
+class Metadata:
+    scopes = ['global', 'path', 'tag']
+
+    def __init__(self):
+        self.data = {k: {} for k in self.scopes}
+
+    def __repr__(self):
+        from pprint import pformat
+        return pformat(self.data, indent=2)
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    def find(self, key):
+        for scope in self.scopes:
             try:
-                symlink_name = symlink_name_template.format(**symlink_name_data).lstrip('/')
-            except KeyError as e:
-                self._output(
-                    'error',
-                    'Invalid key in name-template ({}) {} while trying to make symlink for {}.'
-                    'Correct it, or use --symlink-name-default. Valid keys are: {}'.format(
-                        symlink_name_template, e, full_path, ', '.join(symlink_name_data.keys())
-                    ),
-                    'error-in-template',
-                    invalid_key=e.args[0], template=symlink_name_template, data=symlink_name_data, full_path=full_path
-                )
-                continue
-
-            logger.debug("Making symlink-name ({}) from symlink-name-data: {}".format(
-                symlink_name, symlink_name_data
-            ))
-
-            full_symlink_path = os.path.join(dst_path, symlink_name)
-            tag_folder = os.path.dirname(full_symlink_path)
-
-            # Find the related path to the file, from our symlink.
-            # It is better to have a symlink pointing to our destination
-            # via a relative path, than an absolute path.
-            symlink_destination = os.path.relpath(full_path, tag_folder)
-
-            if not os.path.isdir(tag_folder):
-                logger.debug("    making tag-directory: {}".format(tag_folder))
-                if not self.args.dry:
-                    os.makedirs(tag_folder)
-
-            logger.debug("    making symlink:")
-            logger.debug("      in: {}".format(full_symlink_path))
-            logger.debug("      to: {}".format(symlink_destination))
-
-            should_overwrite = True
-            symlinkpath_exists = False
-
-            if os.path.exists(full_symlink_path):
-                symlinkpath_exists = True
-
-            if self.args.collision_handler in ["smart", "overwrite-if-symlink"]:
-                if symlinkpath_exists:
-                    if not os.path.islink(full_symlink_path):
-                        should_overwrite = False
-
-            if self.args.collision_handler in ["smart", "overwrite-if-dst-same"]:
-                if not full_symlink_path.startswith(self.args.dst):
-                    should_overwrite = False
-
-            if self.args.collision_handler == "no-overwrite":
-                should_overwrite = False
-
-            if symlinkpath_exists:
-                existing_symlink_destination = os.readlink(full_symlink_path)
-                if symlink_destination == existing_symlink_destination:
-                    # Don't bother
-                    logger.debug("    Already exists... Skipping")
-                    continue
-
-                self._output(
-                    'error',
-                    'Link ({}) points to ({}), now we want ({})'.format(
-                        full_symlink_path, existing_symlink_destination, symlink_destination
-                    ),
-                    'collision',
-                    symlink_path=full_symlink_path,
-                    existing_symlink_destination=existing_symlink_destination,
-                    symlink_destination=symlink_destination
-                )
-
-                if self.args.collision_handler == "bail-if-different":
-                    sys.exit(20)
-
-                logger.debug("    Symlink already existing but with another destination.")
-                logger.debug("      old: {}".format(existing_symlink_destination))
-                logger.debug("      new: {}".format(symlink_destination))
-                logger.debug("      will we overwrite: {}".format(should_overwrite))
-
-            if symlinkpath_exists and should_overwrite:
-                if not self.args.dry:
-                    os.remove(full_symlink_path)
-            try:
-                if not self.args.dry:
-                    os.symlink(symlink_destination, full_symlink_path, target_is_directory=not is_file)
-
-                self._output(
-                    'info',
-                    'Made {} -> {}'.format(full_symlink_path, symlink_destination),
-                    'made-symlink',
-                    symlink_path=full_symlink_path,
-                    symlink_destination=symlink_destination
-                )
-            except OSError as e:
+                return self.data[scope][key]
+            except KeyError:
                 pass
+        return None
 
-    def run(self):
-        logger.debug("run()")
+    def add(self, scope, name, value):
+        self.data[scope][name] = value
 
-        src_path = os.path.abspath(self.args.src)
-        dst_path = os.path.abspath(self.args.dst)
-        logger.debug("Using src-path: {}".format(src_path))
-        logger.debug("Using dst-path: {}".format(dst_path))
+    def add_multiple(self, scope, data):
+        if not data:
+            return None
 
-        if not os.path.isdir(src_path):
-            raise exceptions.FolderException("Didnt find src-path: {}".format(src_path))
+        for name, value in data.items():
+            self.add(scope, name, value)
 
-        if os.path.exists(dst_path):
-            if os.path.isdir(self.args.dst):
-                logger.debug("dst path exists and is a folder")
-            else:
-                raise exceptions.FolderException("dst exist but is not a folder. Cant continue")
-        else:
-            logger.debug("dst folder not found, creating")
-            if not self.args.dry:
-                os.makedirs(self.args.dst)
+    def clear(self, scope):
+        self.data[scope] = {}
 
-        self.filters = utils.make_filters(self.args.filter)
-        symlink_name_data = {}
 
-        for dirpath, dirnames, filenames in os.walk(src_path):
-            logger.debug("Checking directory: {}".format(dirpath))
+def run(sourcepath, symlink_basepath, metadata=None, filters=None, nametemplate=None, auto_cleanup=False, dry=False):
+    # Will make metadata and filters available in global scope
+    configure(metadata=metadata or {}, filters=filters or {}, dry=dry)
 
-            relative_path = dirpath.split(os.path.sep)
-            current_folder = relative_path[-1]
-            relative_path.pop(0)  # Remove the "." entry
+    symlink_basepath, sourcepath = _handle_paths(symlink_basepath, sourcepath)
+    metadata_store = Metadata()
 
-            # Make and expose a reversed list of folders where 0 is the item nearest
-            # the end of the path. We use a defaultdict in case there are nothing there,
-            # we don't want taggo to crash.
-            path_hierarcy = defaultdict(lambda: '')
-            path_hierarcy.update({k: v for k, v in enumerate(reversed(relative_path))})
-            symlink_name_data['paths'] = path_hierarcy
+    if os.path.isdir(sourcepath):
+        # Start on top, and look recursive for everything below the start-directory
+        for dirpath, _, filenames in os.walk(sourcepath):
+            metadata_store.clear('path')
 
-            if "#" in current_folder:
-                symlink_name_data['rel_folders'] = utils.get_rel_folders_string(relative_path, False)
-
-                try:
-                    self._make_symlinks(
-                        basename=os.path.basename(dirpath),
-                        symlink_name_data=symlink_name_data,
-                        dirpath=dirpath,
-                        dst_path=dst_path,
-                        is_file=False
-                    )
-                except SkipFile:
-                    continue
+            # FIXME, check if we can get this another way. It is populated inside make_symlink
+            if TAG_CHARACTER in os.path.dirname(dirpath):
+                make_symlink(symlink_basepath, dirpath, metadata_store=metadata_store)
 
             for filename in filenames:
-                if "#" not in filename:
-                    continue
-
-                symlink_name_data['rel_folders'] = utils.get_rel_folders_string(relative_path, True)
-
-                try:
-                    self._make_symlinks(
-                        basename=filename,
-                        symlink_name_data=symlink_name_data,
-                        dirpath=dirpath,
-                        dst_path=dst_path,
-                        is_file=True
+                if TAG_CHARACTER in filename:
+                    make_symlink(
+                        symlink_basepath,
+                        os.path.join(dirpath, filename),
+                        metadata_store=metadata_store,
+                        nametemplate=nametemplate
                     )
-                except SkipFile:
-                    continue
+    else:
+        # A parent folder can contain a TAG_CHARACTER, but we should ignore it,
+        # since it is not "us" (current file).
+        if TAG_CHARACTER in os.path.basename(sourcepath):
+            make_symlink(
+                symlink_basepath,
+                sourcepath,
+                metadata_store=metadata_store,
+                nametemplate=nametemplate
+            )
 
-        if self.args.auto_cleanup:
-            self.cleanup()
+    if auto_cleanup:
+        cleanup(sourcepath)
 
-    def cleanup(self):
-        dst_path = os.path.abspath(self.args.dst)
-        if not os.path.isdir(dst_path):
-            raise exceptions.FolderException("Didnt find directory: {}".format(dst_path))
 
-        for root, dirs, files in os.walk(dst_path):
-            for f in files:
-                full_path = os.path.join(root, f)
-                if not os.path.islink(full_path):
-                    continue
+def _nametemplate(nametemplate, is_file):
+    if isinstance(nametemplate, dict):
+        return nametemplate.get('file' if is_file else 'folder')
 
-                symlink_destination = os.path.normpath(os.path.join(root, os.readlink(full_path)))
-                exists = os.path.exists(symlink_destination)
-                logger.debug("Symlink: {}".format(full_path))
-                logger.debug("  points to: {}".format(symlink_destination))
-                logger.debug("  destination exist: {}".format(exists))
-                if not exists:
-                    self._output(
-                        'info',
-                        'Deleting dead symlink ({}) pointed to {}'.format(full_path, symlink_destination),
-                        'deleted-symlink',
-                        symlink_path=full_path,
-                        symlink_destination=symlink_destination
-                    )
+    if not nametemplate:
+        return DEFAULT_NAMETEMPLATE
 
-                    if not self.args.dry:
-                        os.unlink(full_path)
+    return nametemplate
 
-        # This will eventually trigger another os.walk on what we just looped over.
-        # But we might have just cleaned out a lot of old files, making folders empty after
-        # our part1 cleanup. Doing it again is quick, and much less error prune than baking
-        # in the logic in the loop above.
-        utils.remove_empty_folders(dst_path, remove_root=False)
 
-    def rename(self):
-        src_path = os.path.abspath(self.args.src)
-        if not os.path.isdir(src_path):
-            raise exceptions.FolderException("Didnt find src directory: {}".format(src_path))
-        logger.debug("Will look in folder '{}' for tags to rename from '{}' to '{}'".format(
-            src_path, self.args.original, self.args.new
-        ))
+def _symlink_paths(nametemplate, metadata, symlink_basepath):
+    try:
+        relative_path = nametemplate.format_map(Box(metadata.data, default_box=True)).replace('{}', '').lstrip('/')
+    except KeyError as error:
+        log(
+            f'Invalid key in name-template ({nametemplate}) {error} while trying to make symlink.'
+            'Valid keys are, enable --verbose or --debug to see what keys you can use.',
+            loglevel='error', category='error-in-nametemplate',
+            data={
+                'nametemplate': nametemplate,
+                'metadata': metadata.data,
+                'error': error
+            }
+        )
+        sys.exit(3)
 
-        original_tag = "#{}".format(self.args.original)
-        if not utils.fullmatch(hashtag_re, original_tag):
-            raise exceptions.Error("Invalid hashtag: '{}'".format(original_tag))
+    full_path = os.path.join(symlink_basepath, relative_path)
+    full_path = os.path.join(symlink_basepath, relative_path)
+    symlink_folder = os.path.dirname(full_path)
 
-        new_tag = "#{}".format(self.args.new)
-        if not utils.fullmatch(hashtag_re, new_tag):
-            raise exceptions.Error("Invalid hashtag: '{}'".format(new_tag))
+    if not _dry:
+        try:
+            os.makedirs(symlink_folder, exist_ok=True)
+        except NotADirectoryError:
+            log(
+                f'dst exist but is not a folder. Cant continue',
+                loglevel='error', category='dst-folder-is-file',
+                data={
+                    'symlink_folder': symlink_folder
+                }
+            )
+            sys.exit(5)
 
-        if original_tag == new_tag:
-            raise exceptions.Error("There is no need to rename tag to the same...?")
+    return full_path, symlink_folder
 
-        queue = []
-        logger.debug("Starting collecting list of files/folders to rename:")
-        for root, dirs, files in os.walk(src_path):
-            if dirs:
-                for d in dirs:
-                    if self.args.original in hashtags_in(d):
-                        full_path = os.path.join(root, d)
-                        logger.debug("  Found directory: {}".format(full_path))
-                        queue.append(full_path)
 
-            if files:
-                for f in files:
-                    if self.args.original in hashtags_in(f):
-                        full_path = os.path.join(root, f)
-                        logger.debug("  Found file: {}".format(full_path))
-                        queue.append(full_path)
+def _collision_handler(rule, symlink_full_path, symlink_basepath, symlink_destination):
+    should_overwrite = True
+    symlinkpath_exists = False
 
-        # Start with the longest path, so we can be sure that we are not renaming a
-        # folder that contains another file or folder we also should rename.
-        # We must sort, or be dirty in the os.walk loop. This is much cleaner.
-        for e in sorted(queue, key=len, reverse=True):
-            dirname = os.path.dirname(e)
-            old_basename = os.path.basename(e)
-            new_basename = old_basename.replace(original_tag, new_tag)
-            logger.info("Renaming: {}{}{{{} -> {}}}".format(
-                dirname,
-                os.path.sep,
-                old_basename,
-                new_basename
-            ))
-            if not self.args.dry:
-                os.rename(e, os.path.join(dirname, new_basename))
+    if os.path.isfile(symlink_full_path):
+        symlinkpath_exists = True
 
-    def info(self):
-        src_path = os.path.abspath(self.args.src)
-        logger.debug("Using src-path: {}".format(src_path))
+    if rule in ["smart", "overwrite-if-symlink"]:
+        if symlinkpath_exists:
+            if not os.path.islink(symlink_full_path):
+                should_overwrite = False
 
-        if not os.path.isdir(src_path):
-            raise exceptions.FolderException("Didnt find src-path: {}".format(src_path))
+    if rule in ["smart", "overwrite-if-dst-same"]:
+        if not symlink_full_path.startswith(symlink_basepath):
+            should_overwrite = False
 
-        folder_tags = []
-        file_tags = []
-        for root, dirs, files in os.walk(src_path):
+    if rule == "no-overwrite":
+        should_overwrite = False
+
+    if symlinkpath_exists:
+        existing_symlink_destination = os.readlink(symlink_full_path)
+        if symlink_destination == existing_symlink_destination:
+            # Don't bother
+            raise SkipFile('A symlink like this exists')
+
+        log(
+            f'Link ({symlink_full_path}) points to ({existing_symlink_destination}), we want ({symlink_destination})',
+            loglevel='error', category='collision',
+            data={
+                'symlink_full_path': symlink_full_path,
+                'existing_symlink_destination': existing_symlink_destination,
+                'symlink_destination': symlink_destination
+            }
+        )
+
+        if rule == "bail-if-different":
+            sys.exit(20)
+
+    if symlinkpath_exists and should_overwrite:
+        if not _dry:
+            os.remove(symlink_full_path)
+
+    return True
+
+
+def _handle_file_metadata(sourcepath, metadata_store):
+    metadata_store.add('path', 'sourcepath', sourcepath)
+    metadata_store.add('path', 'file-ext', sourcepath.split('.')[-1])
+
+    if not _metadata:
+        log(f'  * metadata unset', loglevel='debug')
+        return
+
+    log(f'  * _metadata is {_metadata}', loglevel='debug')
+
+    for num, metaname in available_metadata_addons:
+        if metaname not in _metadata:
+            continue
+
+        log(f'  * metadata-check: {metaname}', loglevel='debug')
+        module = f'{num}_{metaname}'
+        mod = importlib.import_module(f'.metadata.{module}', package='taggo')
+        metadata_store.add('path', metaname, mod.run(sourcepath))
+        _check_filter(f'after-{metaname}', metadata_store)
+
+
+def make_symlink(symlink_basepath, sourcepath, *, nametemplate=None, metadata_store=None, collision_rule=None):
+    metadata_store = metadata_store or Metadata()
+
+    is_file = os.path.isfile(sourcepath)
+
+    metadata_store.add_multiple('path', _path_variants(os.path.dirname(sourcepath)))
+    metadata_store.add('path', 'hierarcy_str', _path_hierarcy_string(metadata_store['path'].get('hierarcy'), is_file))
+    metadata_store.add('path', 'basename', os.path.basename(sourcepath))
+
+    if is_file:
+        try:
+            log(f'  * is_file', loglevel='debug')
+            log(f'  * checking metadata now', loglevel='debug')
+            _check_filter('early', metadata_store)
+            _handle_file_metadata(sourcepath, metadata_store)
+        except SkipFile:
+            log(f'  * skipping, filter didnt match', loglevel='verbose')
+            log(metadata_store.data, loglevel='debug')
+            return
+
+    tags = find_tags(metadata_store['path']['basename'])
+    metadata_store.add('path', 'tags', tags)
+    log(f'  * found tags: {tags}', loglevel='debug')
+
+    for tagset in tags.items():
+        log(f'doing {tagset}', loglevel='debug')
+        metadata_store.clear('tag')
+        metadata_store.add_multiple('tag', _tag_variants(tagset))
+        nametemplate = _nametemplate(nametemplate, is_file)
+        symlink_full_path, symlink_folder = _symlink_paths(nametemplate, metadata_store, symlink_basepath)
+        symlink_destination = os.path.relpath(sourcepath, symlink_folder)
+
+        log(f'  * metadata_store: {metadata_store.data}', loglevel='debug')
+        log(f'  * should create:', loglevel='debug')
+        log(f'    * symlink: {symlink_full_path}', loglevel='debug')
+        log(f'    * destination: {symlink_destination}', loglevel='debug')
+
+        try:
+            _check_filter('late', metadata_store)
+            _collision_handler(collision_rule, symlink_full_path, symlink_basepath, symlink_destination)
+        except SkipFile as reason:
+            log(f'  * skipping: {reason}', loglevel='debug')
+            continue
+
+        try:
+            if not _dry:
+                os.symlink(
+                    symlink_destination,
+                    symlink_full_path,
+                    target_is_directory=not is_file
+                )
+
+            log(
+                f'Made {symlink_full_path} -> {symlink_destination}',
+                loglevel='info', category='made-symlink',
+                data={
+                    'symlink_full_path': symlink_full_path,
+                    'symlink_destination': symlink_destination
+                }
+            )
+        except OSError as e:
+            pass
+
+
+def cleanup(dst, dry=False):
+    configure(dry=dry)
+
+    dst_path = os.path.abspath(dst)
+    if not os.path.isdir(dst_path):
+        raise exceptions.FolderException(f"Didnt find directory: {dst_path}")
+
+    for root, _, files in os.walk(dst_path):
+        for f in files:
+            full_path = os.path.join(root, f)
+            if not os.path.islink(full_path):
+                continue
+
+            symlink_destination = os.path.normpath(os.path.join(root, os.readlink(full_path)))
+            exists = os.path.exists(symlink_destination)
+            log(f"Symlink: {full_path}", loglevel='debug')
+            log(f"  points to: {symlink_destination}", loglevel='debug')
+            log(f"  destination exists: {exists}", loglevel='debug')
+
+            if not exists:
+                log(
+                    f'Deleting dead symlink ({full_path}) pointed to {symlink_destination}',
+                    loglevel='info', category='deleted-symlink',
+                    data={
+                        'symlink_path': full_path,
+                        'symlink_destination': symlink_destination
+                    }
+                )
+
+                if not _dry:
+                    os.unlink(full_path)
+
+    # This will eventually trigger another os.walk on what we just looped over.
+    # But we might have just cleaned out a lot of old files, making folders empty after
+    # our part1 cleanup. Doing it again is quick, and much less error prune than baking
+    # in the logic in the loop above.
+    utils.remove_empty_folders(dst_path, remove_root=False)
+
+
+def rename(src, original, new, dry=False):
+    configure(dry=dry)
+    src_path = os.path.abspath(src)
+    if not os.path.isdir(src_path):
+        raise exceptions.FolderException(f"Didnt find src directory: {src_path}")
+    log(f"Will look in folder '{src_path}' for tags to rename from '{original}' to '{new}'", loglevel="verbose")
+
+    original_tag = f"#{original}"
+    if not utils.fullmatch(hashtag_re, original_tag):
+        raise exceptions.Error(f"Invalid hashtag: '{original_tag}'")
+
+    new_tag = f"#{new}"
+    if not utils.fullmatch(hashtag_re, new_tag):
+        raise exceptions.Error(f"Invalid hashtag: '{new_tag}'")
+
+    if original_tag == new_tag:
+        raise exceptions.Error("There is no need to rename tag to the same...?")
+
+    queue = []
+    log("Starting collecting list of files/folders to rename:", loglevel="verbose")
+    for root, dirs, files in os.walk(src_path):
+        if dirs:
             for d in dirs:
-                folder_tags += hashtags_in(d)
+                if original in hashtags_in(d):
+                    full_path = os.path.join(root, d)
+                    log(f"  Found directory: {full_path}", loglevel="verbose")
+                    queue.append(full_path)
+
+        if files:
             for f in files:
-                file_tags += hashtags_in(f)
+                if original in hashtags_in(f):
+                    full_path = os.path.join(root, f)
+                    log(f"  Found file: {full_path}", loglevel="verbose")
+                    queue.append(full_path)
 
-        folder_tags = sorted(set(folder_tags))
-        file_tags = sorted(set(file_tags))
+    # Start with the longest path, so we can be sure that we are not renaming a
+    # folder that contains another file or folder we also should rename.
+    # We must sort, or be dirty in the os.walk loop. This is much cleaner.
+    for e in sorted(queue, key=len, reverse=True):
+        dirname = os.path.dirname(e)
+        old_basename = os.path.basename(e)
+        new_basename = old_basename.replace(original_tag, new_tag)
+        log(f"Renaming: {dirname}{os.path.sep}{{{old_basename} -> {new_basename}}}")
+        if not _dry:
+            os.rename(e, os.path.join(dirname, new_basename))
 
-        logger.info("Folder tags:")
-        for folder_tag in folder_tags:
-            logger.info("  {}".format(folder_tag))
 
-        logger.info("")
-        logger.info("File tags:")
-        for file_tag in file_tags:
-            logger.info("  {}".format(file_tag))
+def info(src):
+    src_path = os.path.abspath(src)
+    log(f"Using src-path: {src_path}", loglevel="verbose")
+
+    if not os.path.isdir(src_path):
+        raise exceptions.FolderException(f"Didnt find src-path: {src_path}")
+
+    folder_tags = []
+    file_tags = []
+    for root, dirs, files in os.walk(src_path):
+        for d in dirs:
+            folder_tags += hashtags_in(d)
+        for f in files:
+            file_tags += hashtags_in(f)
+
+    folder_tags = sorted(set(folder_tags))
+    file_tags = sorted(set(file_tags))
+
+    log("Folder tags:")
+    for folder_tag in folder_tags:
+        log(f"  {folder_tag}")
+
+    log("")
+    log("File tags:")
+    for file_tag in file_tags:
+        log(f"  {file_tag}")
+
+
+def _parse_cli_nametemplate(nametemplate, file=None, folder=None):
+    if file and folder:
+        return {'file': file, 'folder': folder}
+    else:
+        return nametemplate
+
+
+def _parse_cli_filter(filter_data):
+    # Example
+    #  in: [['a'], ['a', 'mid'], ['b', 'pre', 'post', 'mid'], ['this is a filter']]
+    #  out: {'late': {'this is a filter', 'a', 'b'}, 'mid': {'a', 'b'}, 'pre': {'b'}, 'post': {'b'}}
+
+    filters = defaultdict(set)
+    for entry in filter_data:
+        query = entry.pop(0)
+        if entry:
+            for when in entry:
+                filters[when].add(query)
+        else:
+            filters['late'].add(query)
+    return dict(filters)
+
+
+def _parse_cli_metadata(metadata_data):
+    # Example
+    #  in: [['a', 'opt1=1', 'opt2=2'], ['b']]
+    #  out: {'a': {'opt1': '1', 'opt2': '2'}, 'b': {}}
+
+    metadata = {}
+    for entry in metadata_data:
+        pluginname = entry.pop(0)
+        metadata[pluginname] = {}
+        for option in entry:
+            try:
+                option_name, option_value = option.split('=', 1)
+            except ValueError:
+                log(
+                    f'Invalid option ({option}). Need an = sign',
+                    loglevel='critical',
+                    category='invalid-option-metadata',
+                    data={'option': option}
+                )
+                sys.exit(1)
+            metadata[pluginname][option_name] = option_value
+
+    return metadata
 
 
 def main(known_args=None, reraise=False):
+    # We can set known_args to test the cli, or if you
+    # got a special need where you want to run taggo that way.
+
     parser = argparse.ArgumentParser(
         description="Create symlinks to files/folders based on their names"
     )
-    parser.add_argument(
+
+    logoptions = parser.add_mutually_exclusive_group()
+    logoptions.add_argument(
         "--debug",
+        action="store_true",
+        help="Print debug-info about what we are doing",
+    )
+    logoptions.add_argument(
+        "--verbose",
         action="store_true",
         help="Print extra info about what we are doing",
     )
-    parser.add_argument(
+    logoptions.add_argument(
         "--quiet",
         action="store_true",
         help="Print no outputs",
@@ -524,72 +679,71 @@ def main(known_args=None, reraise=False):
         action="store_true"
     )
 
-    # What should we name the file inside the folder belonging to a tag?
+    # What should we name the symlink?
     # You should include enough data here so we wont get a name-conflict.
-    # In case of conflicts, it will get overwritten, we do no check..
+    # In case of conflicts, the collision-handler below will decide what to do.
     parser_run.add_argument(
-        "--symlink-name",
+        "--nametemplate",
         help="A template-based name of what you want to call the symlinks themself."
              "See docs for more info. (default: %(default)s)",
-        default="{tag[as-folders]}/{rel_folders} - {basename}"
+        default=DEFAULT_NAMETEMPLATE,
+        metavar='TEMPLATE'
     )
 
     parser_run.add_argument(
-        "--symlink-name-file",
+        "--nametemplate-file",
         help="Template if we link to a file",
-        default=None
+        default=None,
+        metavar='TEMPLATE'
     )
 
     parser_run.add_argument(
-        "--symlink-name-folder",
+        "--nametemplate-folder",
         help="Template if we link to a folder",
-        default=None
+        default=None,
+        metavar='TEMPLATE'
     )
 
     parser_run.add_argument(
         "--filter",
-        help="Only handle files matching a filter. Can be specified more than once.",
+        help=textwrap.dedent("""\
+        Filtering using jmespath. Make sure it matches (returns true) for the files you want to include.
+        You can specify multiple filters.
+
+        If you want to specify WHEN you want to check against this filter, use one or more of the
+        additional options below. This can be useful if you just want to check eg. the file-ext,
+        which is available early.. You don't need to wait for all the metadata extensions to run.
+
+          * early: As early as possible.
+          * after-{metadata}: eg "after-exif", see below for which order they are run.
+          * late: Just when we are about to create the links.. (this is the default if you dont specify WHEN)
+          """),
         action="append",
-        default=[]
+        nargs='+',
+        default=[],
+        metavar=('FILTER', 'WHEN')
     )
 
     parser_run.add_argument(
-        "--filter-mode",
-        help="Should we include or exclude files matching the filter."
-             "Include uses locical AND, and exclude uses logical OR. (default: %(default)s)",
-        choices=["include", "exclude"],
-        default="include"
-    )
+        "--metadata",
+        help=textwrap.dedent("""\
+        Add extra metadata that will be available in filters and the name-templates.
+        They are not enabled by default because some of them depends on 3rd party, or
+        the might take additional time when we scan.
+        You can also add options, using eg"--metadata pluginname option=value option2=value2",
+        if the plugin supports that.
 
-    parser_run.add_argument(
-        "--filter-query",
-        help="Filtering using jmespath. Make sure it matches (returns true) for the files you want to include.",
-        default=None
-    )
+        Plugins, in order they run..
 
-    parser_run.add_argument(
-        "--metadata-addon",
-        help="Enable additional keys for the symlink-name template and filtering."
-             "Use multiple times to enable several.",
+          * stat: File stat, like accesstime, size and so on..
+          * filetype: Checks the first bytes of a file to figure out what it is
+          * exif: Get some additional image-data available.
+          * md5: Calculate the md5 checksum of a file.
+          """),
         action="append",
-        default=[]
-    )
-
-    parser_run.add_argument(
-        "--metadata-default",
-        help="Create default for keys that are not populated.."
-             "Example if we don't have exif data on an image,"
-             "you might want to set the key you depend on to something default."
-             "Use multiple times to define several defaults. Use = to separate."
-             "Example '--metadata-default keyname=value",
-        action="append",
-        default=[]
-    )
-
-    parser_run.add_argument(
-        "--prompt-each",
-        help="Wait for keypress between each symlink.. Usefull for testing",
-        action="store_true"
+        nargs='+',
+        default=[],
+        metavar=('PLUGIN', 'OPTIONS')
     )
 
     parser_run.add_argument(
@@ -617,7 +771,7 @@ def main(known_args=None, reraise=False):
 
     parser_run.add_argument(
         "src",
-        help="Source folder"
+        help="Source folder/file"
     )
     parser_run.add_argument(
         "dst",
@@ -665,19 +819,37 @@ def main(known_args=None, reraise=False):
 
     args = parser.parse_args(known_args)
 
+    if args.verbose or os.environ.get("VERBOSE"):
+        configure(output='VERBOSE')
+
     if args.debug or os.environ.get("DEBUG"):
-        logger.setLevel(logging.DEBUG)
-    else:
-        logger.setLevel(logging.INFO)
+        configure(output='DEBUG')
 
-    logger.disabled = args.quiet
-
-    t = Taggo(args)
+    if args.quiet or os.environ.get("QUIET"):
+        configure(output='QUIET')
 
     try:
-        getattr(t, args.cmd)()
+        if args.cmd == 'run':
+            run(
+                args.src, args.dst,
+                filters=_parse_cli_filter(args.filter),
+                metadata=_parse_cli_metadata(args.metadata),
+                auto_cleanup=args.auto_cleanup,
+                dry=args.dry,
+                nametemplate=_parse_cli_nametemplate(
+                    args.nametemplate,
+                    file=args.nametemplate_file,
+                    folder=args.nametemplate_folder
+                )
+            )
+        elif args.cmd == 'cleanup':
+            cleanup(args.dst, dry=args.dry)
+        elif args.cmd == 'rename':
+            rename(args.src, args.original, args.new, dry=args.dry)
+        elif args.cmd == 'info':
+            info(args.src)
     except exceptions.Error as e:
-        logger.error(e)
+        log(e, loglevel='error', category='exception')
         if reraise:
             raise
         sys.exit(2)
