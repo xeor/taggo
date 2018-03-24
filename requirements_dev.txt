@@ -15,3 +15,4 @@ pytest-catchlog==1.2.2
 piexif
 filetype
 jmespath
+python-box
