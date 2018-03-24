@@ -33,7 +33,8 @@ test_requirements = [
     'pytest-catchlog',
     'piexif',
     'filetype',
-    'jmespath'
+    'jmespath',
+    'python-box'
 ]
 
 setup(
