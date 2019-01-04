@@ -7,7 +7,7 @@ tox==2.9.1
 coverage==4.4.1
 Sphinx==1.6.4
 cryptography==2.4.2
-PyYAML==3.12
+PyYAML==3.13
 pytest==3.2.3
 pytest-runner==2.12.1
 pytest-catchlog==1.2.2
