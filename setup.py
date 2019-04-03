@@ -45,7 +45,7 @@ setup(
     author="Lars Solberg",
     author_email='lars.solberg@gmail.com',
     url='https://github.com/xeor/taggo',
-    packages=find_packages(include=['taggo'], exclude=['tests']),
+    packages=find_packages(include=['taggo', 'taggo.metadata'], exclude=['tests']),
     include_package_data=True,
     install_requires=requirements,
     extras_require=extras,
