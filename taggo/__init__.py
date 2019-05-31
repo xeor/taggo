@@ -178,7 +178,11 @@ def _check_filter(group, metadata_store):
 
 def _path_variants(dirpath):
     hierarcy = dirpath.split(os.path.sep)
-    hierarcy.remove('')  # Remove the "." entry
+    try:
+        hierarcy.remove('')  # Remove the "." entry
+    except ValueError:
+        # The . is not there on all OS'es
+        pass
 
     current_folder = hierarcy[-1]
 
