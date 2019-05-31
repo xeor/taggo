@@ -483,7 +483,7 @@ def make_symlink(symlink_basepath, sourcepath, *, nametemplate=None, metadata_st
                 }
             )
         except OSError as e:
-            pass
+            log(f'  * OSError while creating symlink: {e}', loglevel='debug')
 
 
 def cleanup(dst, dry=False):
