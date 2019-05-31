@@ -68,3 +68,7 @@ FAQ
   * You know you miss one folder that contains all your dog pictures.
   * You sould not depend on a 3rd party program/database to manage
     your files/photos.
+
+* There are just a bunch of empty folders created on windows
+
+  * This is probably because you are not allowed to create symlinks (verify by running with debug). To allow yourself access to do that, go to `Administrative Tools > Local Security Policy > Local Policies > User Rights Assignment` and add your account to `Create symbolic links`.
