@@ -19,7 +19,8 @@ requirements = [
 
 # Optional packages
 extras = {
-    'all': ['piexif', 'filetype']
+    'allmeta': ['piexif', 'filetype'],
+    'winlnk': ['pywin32']
 }
 
 # put setup requirements (distutils extensions, etc.) here
