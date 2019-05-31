@@ -433,7 +433,7 @@ def make_symlink(symlink_basepath, sourcepath, *, nametemplate=None, metadata_st
     link_creator_func = {
         'symlink': lambda src, dst, extra: os.symlink(src, dst, target_is_directory=extra.get('target_is_directory', False)),
         'winlnk': lambda src, dst, extra: _create_win_lnk(extra['metadata']['path']['sourcepath'], dst)
-    }.get(link_creator, 'symlink')
+    }.get(link_creator or 'symlink')
 
     metadata_store = metadata_store or Metadata()
 
