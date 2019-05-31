@@ -189,7 +189,7 @@ def _path_variants(dirpath):
     try:
         hierarcy.remove('')  # Remove the "." entry
     except ValueError:
-        # The . is not there on all OS'es
+        # Not there on all OS'es
         pass
 
     current_folder = hierarcy[-1]
@@ -271,7 +271,7 @@ class Metadata:
         self.data[scope] = {}
 
 
-def run(sourcepath, symlink_basepath, metadata=None, filters=None, nametemplate=None, auto_cleanup=False, dry=False):
+def run(sourcepath, symlink_basepath, metadata=None, filters=None, nametemplate=None, auto_cleanup=False, dry=False, link_creator=None):
     # Will make metadata and filters available in global scope
     configure(metadata=metadata or {}, filters=filters or {}, dry=dry)
 
@@ -285,7 +285,7 @@ def run(sourcepath, symlink_basepath, metadata=None, filters=None, nametemplate=
 
             # FIXME, check if we can get this another way. It is populated inside make_symlink
             if TAG_CHARACTER in os.path.dirname(dirpath):
-                make_symlink(symlink_basepath, dirpath, metadata_store=metadata_store)
+                make_symlink(symlink_basepath, dirpath, metadata_store=metadata_store, link_creator=link_creator)
 
             for filename in filenames:
                 if TAG_CHARACTER in filename:
@@ -293,7 +293,8 @@ def run(sourcepath, symlink_basepath, metadata=None, filters=None, nametemplate=
                         symlink_basepath,
                         os.path.join(dirpath, filename),
                         metadata_store=metadata_store,
-                        nametemplate=nametemplate
+                        nametemplate=nametemplate,
+                        link_creator=link_creator
                     )
     else:
         # A parent folder can contain a TAG_CHARACTER, but we should ignore it,
@@ -303,7 +304,8 @@ def run(sourcepath, symlink_basepath, metadata=None, filters=None, nametemplate=
                 symlink_basepath,
                 sourcepath,
                 metadata_store=metadata_store,
-                nametemplate=nametemplate
+                nametemplate=nametemplate,
+                link_creator=link_creator
             )
 
     if auto_cleanup:
@@ -336,7 +338,6 @@ def _symlink_paths(nametemplate, metadata, symlink_basepath):
         )
         sys.exit(3)
 
-    full_path = os.path.join(symlink_basepath, relative_path)
     full_path = os.path.join(symlink_basepath, relative_path)
     symlink_folder = os.path.dirname(full_path)
 
@@ -421,8 +422,19 @@ def _handle_file_metadata(sourcepath, metadata_store):
         metadata_store.add('path', metaname, mod.run(sourcepath))
         _check_filter(f'after-{metaname}', metadata_store)
 
+def _create_win_lnk(src, dst):
+    import win32com.client
+    shell = win32com.client.Dispatch('WScript.Shell')
+    shortcut = shell.CreateShortCut(f'{dst}.lnk')
+    shortcut.Targetpath = src
+    shortcut.save()
 
-def make_symlink(symlink_basepath, sourcepath, *, nametemplate=None, metadata_store=None, collision_rule=None):
+def make_symlink(symlink_basepath, sourcepath, *, nametemplate=None, metadata_store=None, collision_rule=None, link_creator=None):
+    link_creator_func = {
+        'symlink': lambda src, dst, extra: os.symlink(src, dst, target_is_directory=extra.get('target_is_directory', False)),
+        'winlnk': lambda src, dst, extra: _create_win_lnk(extra['metadata']['path']['sourcepath'], dst)
+    }.get(link_creator, 'symlink')
+
     metadata_store = metadata_store or Metadata()
 
     is_file = os.path.isfile(sourcepath)
@@ -468,11 +480,10 @@ def make_symlink(symlink_basepath, sourcepath, *, nametemplate=None, metadata_st
 
         try:
             if not _dry:
-                os.symlink(
-                    symlink_destination,
-                    symlink_full_path,
-                    target_is_directory=not is_file
-                )
+                link_creator_func(symlink_destination, symlink_full_path, {
+                    'target_is_directory': not is_file,
+                    'metadata': metadata_store.data
+                })
 
             log(
                 f'Made {symlink_full_path} -> {symlink_destination}',
@@ -782,6 +793,20 @@ def main(known_args=None, reraise=False):
     )
 
     parser_run.add_argument(
+        "--link-creator",
+        help=textwrap.dedent("""\
+        We are by default trying to create a symlink, but that is not always feasable.
+        Example, on windows, you will need additional privileges to create them, making the normal windows .lnk
+        format a better altnernative.
+
+          * symlink (default): Use the normal python os.symlink.
+          * winlnk: Create windows lnk files (need pywin32, installed as dep if you did "pip install taggo[winlnk]")
+        """),
+        choices=["symlink", "winlnk"],
+        default="symlink"
+    )
+
+    parser_run.add_argument(
         "src",
         help="Source folder/file"
     )
@@ -852,7 +877,8 @@ def main(known_args=None, reraise=False):
                     args.nametemplate,
                     file=args.nametemplate_file,
                     folder=args.nametemplate_folder
-                )
+                ),
+                link_creator=args.link_creator
             )
         elif args.cmd == 'cleanup':
             cleanup(args.dst, dry=args.dry)
