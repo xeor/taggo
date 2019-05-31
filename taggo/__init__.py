@@ -48,6 +48,10 @@ hashtag_re = re.compile(r"""
         )?                   # This whole parameter-group is optional
         """, re.X)
 
+if os.name == 'nt':
+    invalid_fs_path_re = re.compile(r'[\\:<>\*\?\|]')
+else:
+    invalid_fs_path_re = None
 
 def hashtags_in(string):
     return [i[0] for i in hashtag_re.findall(string)]
@@ -178,6 +182,10 @@ def _check_filter(group, metadata_store):
 
 def _path_variants(dirpath):
     hierarcy = dirpath.split(os.path.sep)
+
+    if invalid_fs_path_re:
+        hierarcy = [invalid_fs_path_re.sub('', i) for i in hierarcy]
+
     try:
         hierarcy.remove('')  # Remove the "." entry
     except ValueError:
