@@ -2,6 +2,21 @@
 History
 =======
 
+0.16.0 (2019-06-03)
+------
+
+* Lots of windows fixes
+
+0.15.0
+------
+
+* pip-install error fixed (missing files)
+
+0.14.0
+------
+
+* Small bugfixes
+
 0.13.0 (2018-03-04)
 -------------------
 
