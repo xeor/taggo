@@ -20,7 +20,8 @@ requirements = [
 # Optional packages
 extras = {
     'allmeta': ['piexif', 'filetype'],
-    'winlnk': ['pywin32']
+    'winlnk': ['pywin32'],
+    'frontmatter': ['python-frontmatter']
 }
 
 # put setup requirements (distutils extensions, etc.) here
@@ -35,7 +36,8 @@ test_requirements = [
     'piexif',
     'filetype',
     'jmespath',
-    'python-box'
+    'python-box',
+    'python-frontmatter'
 ]
 
 setup(

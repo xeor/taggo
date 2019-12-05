@@ -21,6 +21,7 @@ There are a bunch of test-files under tests/test_files, here are some higlights.
   files_meta     # Files to test meta plugins..
   folders        # Tagged folders with some empty files
   folders_depth  # Different depth folders, with empty files
+  frontmatter    # Files that contain frontmatter tags
 """
 
 test_files = "tests/test_files/"
@@ -77,6 +78,18 @@ def test_misc1(tmpdir):
     assert os.readlink(
         f'{tmpdir}/ѤѥѦѧѨ/d41d8cd98f00b204e9800998ecf8427e.txt'
     ).endswith('tests/test_files/files_flat/ƂƃƄƅƆƇƈ #ѤѥѦѧѨ ƉƊƋƌƍƎƏƐƑ.txt')
+
+
+def test_frontmatter(tmpdir):
+    taggo.main(["run", test_files, str(tmpdir), "--nametemplate", "{tag.as-folders}/{path.basename}", "--tag-lookup", "frontmatter"])
+
+    for filepath in [
+        "fm1/test.md",
+        "fm2/test.md",
+        "fm2/test2.md",
+        "fm3/test2.md"
+    ]:
+        assert os.path.isfile(f"{tmpdir}/{filepath}")
 
 
 def test_existing_file_dst(tmpdir):

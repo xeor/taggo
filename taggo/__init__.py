@@ -31,12 +31,7 @@ TAG_PATH_HIERARCY_TOP_NAME = "root"
 # What character should we replace folder separator with to get path[hierarcy_str]
 TAG_PATH_HIERARCY_SEPARATOR = "_"
 
-# Hashtag with optional param matcher
-#  hashtag_re.findall('#test not#me #abc(test=123,la=la) #aaa(111) #aaa(222) lala')
-#    > [('test', ''), ('abc', 'test=123,la=la'), ('aaa', '111'), ('aaa', '222')]
-hashtag_re = re.compile(r"""
-        \B                   # Else we might match on eg no#tag
-        \#                   # Tag-character.. The hashtag
+tag_regex = r"""
         (                    # Main tag-name group
             [^\.,\(\)\s]+    # Tags can contain anything except whitespaces, "." and "," (end of sentences problem)
                              # and ()-brackets (they are used in params)
@@ -46,6 +41,18 @@ hashtag_re = re.compile(r"""
                 (.+?)        # Whatever is inside, as little as possible before the \) below. Make a capture-group
             \)               # Parameter-end
         )?                   # This whole parameter-group is optional
+        """
+
+tag_re = re.compile(tag_regex, re.X)
+
+
+# Hashtag with optional param matcher
+#  hashtag_re.findall('#test not#me #abc(test=123,la=la) #aaa(111) #aaa(222) lala')
+#    > [('test', ''), ('abc', 'test=123,la=la'), ('aaa', '111'), ('aaa', '222')]
+hashtag_re = re.compile(fr"""
+        \B                   # Else we might match on eg no#tag
+        \#                   # Tag-character.. The hashtag
+        {tag_regex}
         """, re.X)
 
 if os.name == 'nt':
@@ -213,12 +220,30 @@ def _path_hierarcy_string(path_hierarcy, is_file, separator=TAG_PATH_HIERARCY_SE
     else:
         return separator.join(path_hierarcy[:-1])
 
-
-def find_tags(name):
+def _find_tags(string, regex):
     tagdata = {}
-    for tag in set(hashtag_re.findall(name)):
+
+    for tag in set(regex.findall(string)):
         tagname, tagparams = tag
         tagdata[tagname] = tagparams.split(',')
+
+    return tagdata
+
+
+def find_tags(path, tag_lookup=None, is_file=True):
+    tag_lookup = tag_lookup or []
+    tagdata = {}
+
+    tagdata.update(_find_tags(path['basename'], hashtag_re))
+
+    if is_file and 'frontmatter' in tag_lookup:
+        if path['file-ext'] == 'md':
+            import frontmatter
+            fm = frontmatter.load(path['sourcepath'])
+            for t in fm.metadata.get('tags', []):
+                tagdata.update(_find_tags(t, tag_re))
+
+    print(f'tagdata: {tagdata}')
     return tagdata
 
 
@@ -271,7 +296,7 @@ class Metadata:
         self.data[scope] = {}
 
 
-def run(sourcepath, symlink_basepath, metadata=None, filters=None, nametemplate=None, auto_cleanup=False, dry=False, link_creator=None):
+def run(sourcepath, symlink_basepath, metadata=None, filters=None, nametemplate=None, auto_cleanup=False, dry=False, link_creator=None, tag_lookup=None):
     # Will make metadata and filters available in global scope
     configure(metadata=metadata or {}, filters=filters or {}, dry=dry)
 
@@ -288,25 +313,25 @@ def run(sourcepath, symlink_basepath, metadata=None, filters=None, nametemplate=
                 make_symlink(symlink_basepath, dirpath, metadata_store=metadata_store, link_creator=link_creator)
 
             for filename in filenames:
-                if TAG_CHARACTER in filename:
-                    make_symlink(
-                        symlink_basepath,
-                        os.path.join(dirpath, filename),
-                        metadata_store=metadata_store,
-                        nametemplate=nametemplate,
-                        link_creator=link_creator
-                    )
+                make_symlink(
+                    symlink_basepath,
+                    os.path.join(dirpath, filename),
+                    metadata_store=metadata_store,
+                    nametemplate=nametemplate,
+                    link_creator=link_creator,
+                    tag_lookup=tag_lookup
+                )
     else:
         # A parent folder can contain a TAG_CHARACTER, but we should ignore it,
         # since it is not "us" (current file).
-        if TAG_CHARACTER in os.path.basename(sourcepath):
-            make_symlink(
-                symlink_basepath,
-                sourcepath,
-                metadata_store=metadata_store,
-                nametemplate=nametemplate,
-                link_creator=link_creator
-            )
+        make_symlink(
+            symlink_basepath,
+            sourcepath,
+            metadata_store=metadata_store,
+            nametemplate=nametemplate,
+            link_creator=link_creator,
+            tag_lookup=tag_lookup
+        )
 
     if auto_cleanup:
         cleanup(sourcepath)
@@ -429,7 +454,7 @@ def _create_win_lnk(src, dst):
     shortcut.Targetpath = src
     shortcut.save()
 
-def make_symlink(symlink_basepath, sourcepath, *, nametemplate=None, metadata_store=None, collision_rule=None, link_creator=None):
+def make_symlink(symlink_basepath, sourcepath, *, nametemplate=None, metadata_store=None, collision_rule=None, link_creator=None, tag_lookup=None):
     link_creator_func = {
         'symlink': lambda src, dst, extra: os.symlink(src, dst, target_is_directory=extra.get('target_is_directory', False)),
         'winlnk': lambda src, dst, extra: _create_win_lnk(extra['metadata']['path']['sourcepath'], dst)
@@ -454,7 +479,11 @@ def make_symlink(symlink_basepath, sourcepath, *, nametemplate=None, metadata_st
             log(metadata_store.data, loglevel='debug')
             return
 
-    tags = find_tags(metadata_store['path']['basename'])
+    tags = find_tags(metadata_store['path'], tag_lookup=tag_lookup, is_file=is_file)
+    if not tags:
+        log(f'  * skipping, found no tags', loglevel='debug')
+        return
+
     metadata_store.add('path', 'tags', tags)
     log(f'  * found tags: {tags}', loglevel='debug')
 
@@ -776,6 +805,22 @@ def main(known_args=None, reraise=False):
     )
 
     parser_run.add_argument(
+        "--tag-lookup",
+        help=textwrap.dedent("""\
+        We will always check the filename for tags (example #tag), but tags can also hide other places.
+        Currently, there are only one extra lookup, but more might come later.
+
+          * frontmatter: Look for tags in markdown (.md) files using frontmatter. Note that you will need
+                         to install "python-frontmatter" for this to work. Install it via pip manually, or use
+                         "pip install taggo[frontmatter]" when installing taggo.
+          """),
+        action="append",
+        default=[],
+        choices=['frontmatter',],
+        metavar='LOOKUPTYPE'
+    )
+
+    parser_run.add_argument(
         "--collision-handler",
         help=textwrap.dedent("""\
         There are a couple of different modes you can set for handling symlink-name collisions.
@@ -878,7 +923,8 @@ def main(known_args=None, reraise=False):
                     file=args.nametemplate_file,
                     folder=args.nametemplate_folder
                 ),
-                link_creator=args.link_creator
+                link_creator=args.link_creator,
+                tag_lookup=args.tag_lookup
             )
         elif args.cmd == 'cleanup':
             cleanup(args.dst, dry=args.dry)
