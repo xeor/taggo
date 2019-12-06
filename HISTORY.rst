@@ -2,6 +2,17 @@
 History
 =======
 
+0.17.1 (2019-12-06)
+------
+
+* Build-fix, docs and changelog update
+
+0.17.0 (2019-12-05)
+------
+
+* Added a parameter and functionality for alternative tag-lookup. You can now use `--tag-lookup frontmatter` using the run command
+  if you want to also use frontmatter and data in `.md` files as tags. Use `tags` in frontmatter. It can be a list.
+
 0.16.0 (2019-06-03)
 ------
 

@@ -69,6 +69,15 @@ Currently you can define:
 
 Run cleanup (see own command) after we are done
 
+--tag-lookup
+""""""""""""
+
+You can use --tag-lookup at the run command if you want additional tag-lookups.
+This can be usefull if you have eg. a .md file where you are using frontmatter for metadata but you want to
+keep the filename itself as is..
+
+Examples
+* --tag-lookup frontmatter, will look for a list (`tags`) in frontmatter in markdown. See `tests/test_files/frontmatter/a/b/test.md` for example..
 
 --filter
 """"""""

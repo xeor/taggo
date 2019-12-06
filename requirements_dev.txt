@@ -16,3 +16,4 @@ piexif
 filetype
 jmespath
 python-box
+python-frontmatter
