@@ -243,7 +243,6 @@ def find_tags(path, tag_lookup=None, is_file=True):
             for t in fm.metadata.get('tags', []):
                 tagdata.update(_find_tags(t, tag_re))
 
-    print(f'tagdata: {tagdata}')
     return tagdata
 
 
