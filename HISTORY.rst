@@ -2,6 +2,11 @@
 History
 =======
 
+0.18.0 (2019-12-07)
+-------------------
+
+* Don't create symlinks if it's destination is in the symlink directory. This makes it possible to have the tag-directory inside the source-directory.
+
 0.17.1 (2019-12-06)
 -------------------
 

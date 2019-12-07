@@ -3,6 +3,7 @@
 
 import os
 import re
+import glob
 import json
 import shutil
 import textwrap
@@ -90,6 +91,18 @@ def test_frontmatter(tmpdir):
         "fm3/test2.md"
     ]:
         assert os.path.isfile(f"{tmpdir}/{filepath}")
+
+def test_tagfolder_in_src(tmpdir):
+    """
+    If the tag-destination is inside the source-directory, we must ignore it..
+    """
+    tmp = f"{tmpdir}/tagfolder_in_source"
+    shutil.copytree(f"{test_files}/tagfolder_in_source", tmp, symlinks=True)
+
+    for i in [0, 1]:
+        taggo.main(["run", "--nametemplate", "{path.basename} - {path.hierarcy_str}", tmp, tmp + '/tags'])
+
+    assert len(glob.glob(tmp + '/tags/*')) == 1
 
 
 def test_existing_file_dst(tmpdir):

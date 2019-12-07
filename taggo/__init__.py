@@ -461,6 +461,10 @@ def make_symlink(symlink_basepath, sourcepath, *, nametemplate=None, metadata_st
 
     metadata_store = metadata_store or Metadata()
 
+    if sourcepath.startswith(symlink_basepath):
+        log(f'  * skipping, symlink is already in the destination directory', loglevel='debug')
+        return
+
     is_file = os.path.isfile(sourcepath)
 
     metadata_store.add_multiple('path', _path_variants(os.path.dirname(sourcepath)))
