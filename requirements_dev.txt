@@ -1,4 +1,4 @@
-pip==9.0.1
+pip==20.2.4
 bumpversion==0.5.3
 wheel==0.30.0
 watchdog==0.8.3
@@ -6,7 +6,7 @@ flake8==3.4.1
 tox==2.9.1
 coverage==4.4.1
 Sphinx==3.2.1
-cryptography==2.4.2
+cryptography==3.2.1
 PyYAML==5.3.1
 pytest==3.2.3
 pytest-runner==2.12.1
