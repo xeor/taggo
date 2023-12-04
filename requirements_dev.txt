@@ -9,7 +9,7 @@ Sphinx==3.2.1
 cryptography==41.0.3
 PyYAML==5.4.1
 pytest==3.2.3
-pytest-runner==6.0.0
+pytest-runner==6.0.1
 pytest-catchlog==1.2.2
 
 piexif
